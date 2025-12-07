@@ -1,0 +1,55 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes: 
+      - mvep-mongodb:/data/db
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    restart: always
+    volumes:
+      - mvep-postgres:/var/lib/postgresql
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=pass
+  
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - mvep-redis:/data
+  mail-hog:
+    image: mailhog/mailhog
+    ports:
+      - 1025:1025
+      - 8025:8025
+    restart: always
+    container_name: mailhog-multi-vendor-platform
+
+  redis-ui:
+    image: redis/redisinsight:latest 
+    container_name: redis-ui
+    ports:
+      - 5540:5540
+    restart: always
+    depends_on:
+      - redis
+
+volumes:
+  mvep-mongodb:
+  mvep-postgres:
+  mvep-redis:
+  
