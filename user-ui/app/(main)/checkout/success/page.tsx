@@ -28,7 +28,7 @@ export default function OrderSuccessPage() {
                 <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mb-6 flex justify-between items-center">
                    <div>
                       <div className="text-sm text-slate-500">Estimated Delivery</div>
-                      <div className="font-bold text-lg text-slate-900">Tomorrow, 14 Aug</div>
+                      <div className="font-bold text-lg   ">Tomorrow, 14 Aug</div>
                    </div>
                    <Link href="/account/orders">
                       <Button variant="outline" className="bg-white">Review or edit order</Button>
@@ -48,7 +48,7 @@ export default function OrderSuccessPage() {
 
                 <div className="flex flex-col sm:flex-row gap-4">
                    <Link href="/" className="flex-1">
-                      <Button className="w-full bg-yellow-400 text-slate-900 hover:bg-yellow-500">
+                      <Button className="w-full      hover: ">
                          Continue Shopping
                       </Button>
                    </Link>

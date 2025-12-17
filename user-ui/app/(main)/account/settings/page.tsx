@@ -41,7 +41,7 @@ export default function SettingsPage() {
       {/* Page Header */}
       <div className="bg-white border-b py-6 mb-8">
         <div className="container mx-auto px-4 max-w-6xl">
-          <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+          <h1 className="text-3xl font-bold   ">Settings</h1>
           <p className="text-slate-500 mt-1">Manage your account preferences and settings.</p>
         </div>
       </div>
@@ -59,7 +59,7 @@ export default function SettingsPage() {
                   className={`flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors whitespace-nowrap text-left w-full
                     ${activeTab === item.id 
                       ? "bg-white text-blue-600 shadow-sm ring-1 ring-slate-200" 
-                      : "text-slate-600 hover:bg-white hover:text-slate-900"
+                      : "text-slate-600 hover:bg-white hover:  "
                     }`}
                 >
                   <item.icon className={`h-4 w-4 ${activeTab === item.id ? "text-blue-600" : "text-slate-400"}`} />
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                      <CardContent className="space-y-6">
                         
                         <div className="space-y-4">
-                           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                           <h3 className="text-sm font-bold    flex items-center gap-2">
                               <Mail className="h-4 w-4" /> Email Notifications
                            </h3>
                            <div className="flex items-center justify-between">
@@ -234,7 +234,7 @@ export default function SettingsPage() {
                         <Separator />
 
                         <div className="space-y-4">
-                           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                           <h3 className="text-sm font-bold    flex items-center gap-2">
                               <Smartphone className="h-4 w-4" /> Push Notifications
                            </h3>
                            <div className="flex items-center justify-between">
@@ -271,14 +271,14 @@ export default function SettingsPage() {
                                  <span className="font-bold text-xs italic text-blue-800">VISA</span>
                               </div>
                               <div>
-                                 <p className="text-sm font-bold text-slate-900">Visa ending in 4242</p>
+                                 <p className="text-sm font-bold   ">Visa ending in 4242</p>
                                  <p className="text-xs text-slate-500">Expires 12/28</p>
                               </div>
                            </div>
                            <Button variant="ghost" size="sm">Remove</Button>
                         </div>
 
-                        <Button variant="outline" className="w-full border-dashed border-2 py-6 text-slate-500 hover:text-slate-900 hover:border-slate-400">
+                        <Button variant="outline" className="w-full border-dashed border-2 py-6 text-slate-500 hover:   hover:border-slate-400">
                            + Add New Card
                         </Button>
                      </CardContent>

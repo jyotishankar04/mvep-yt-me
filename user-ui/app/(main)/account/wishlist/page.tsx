@@ -63,7 +63,7 @@ export default function WishlistPage() {
                             </div>
                          </div>
                          <div className="flex flex-col gap-2 w-full md:w-auto">
-                            <Button className="bg-yellow-400 text-slate-900 hover:bg-yellow-500 font-normal">
+                            <Button className="     hover:  font-normal">
                                Add to Cart
                             </Button>
                             <Button variant="outline" size="sm">Delete</Button>

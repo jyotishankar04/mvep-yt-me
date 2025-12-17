@@ -119,7 +119,7 @@ export default function RegisterVerifyPage() {
         </div>
 
         <Button 
-          className="w-full bg-yellow-400 text-slate-900 hover:bg-yellow-500 border border-yellow-500 font-normal shadow-sm"
+          className="w-full"
           onClick={handleVerify}
           disabled={isVerifying || otp.length !== 6}
         >

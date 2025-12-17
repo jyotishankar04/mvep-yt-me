@@ -114,7 +114,7 @@ export default function SearchPage() {
       <div>
         <h3 className="font-bold mb-4 text-sm">Category</h3>
         <div className="space-y-2 text-sm text-slate-700 ml-2 border-l-2 pl-2 border-slate-200">
-          <p className="font-bold text-slate-900 cursor-pointer">Electronics</p>
+          <p className="font-bold    cursor-pointer">Electronics</p>
           <p className="cursor-pointer hover:text-blue-600">Headphones</p>
           <p className="cursor-pointer hover:text-blue-600">Mobiles</p>
           <p className="cursor-pointer hover:text-blue-600">Accessories</p>
@@ -176,7 +176,7 @@ export default function SearchPage() {
       {/* Top Bar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b pb-4 sticky top-16 bg-white z-20">
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-slate-900">1-{products.length} of over 50,000 results</span> for <span className="font-bold text-orange-700">"Electronics"</span>
+          <span className="font-medium   ">1-{products.length} of over 50,000 results</span> for <span className="font-bold text-orange-700">"Electronics"</span>
         </div>
         
         <div className="flex items-center gap-4">
@@ -271,7 +271,7 @@ export default function SearchPage() {
                         <span className="text-[10px] text-slate-500 mt-1 block">Free delivery by Wed, 20 Aug</span>
                     )}
 
-                    <Button className="w-full mt-3 h-8 text-xs bg-yellow-400 text-slate-900 hover:bg-yellow-500 font-bold border-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button className="w-full mt-3 h-8 text-xs      hover:  font-bold border-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                         Add to Cart
                     </Button>
                   </CardContent>

@@ -10,13 +10,8 @@ import { users } from "../../generated/prisma";
 declare global {
     namespace Express {
         interface Request {
-            user?: {
-                id: string;
-                email: string;
-                role: string;
-                sessionId: string;
-            };
-        }
+            user?: AccessTokenPayload
+            }
     }
 }
 
@@ -49,7 +44,7 @@ export const authenticate = async (
         console.log(decoded)
         // 6. Validate user still exists in database
         const cachedUser = await redis.get(`user:${decoded.id}`);
-        let user: { id: string; email: string; role: string; } | null = null;
+        let user: Partial<users> | null = null;
         if (cachedUser) {
             user = JSON.parse(cachedUser);
         } else {
@@ -59,6 +54,10 @@ export const authenticate = async (
                     id: true,
                     email: true,
                     role: true,
+                    avatar: true,
+                    password:false,
+                    name: true,
+                    following: true,
                 }
             });
             if (user) {
@@ -69,13 +68,14 @@ export const authenticate = async (
         if (!user) {
             return next(new AuthError("User not found"));
         }
-
+        console.log(user)
 
         // 7. Attach user to request object
         req.user = {
-            id: user.id,
-            email: user.email,
-            role: user.role,
+            id: user.id!,
+            email: user.email!,
+            role: user.role!,
+            name: user.name!,
             sessionId: decoded.sessionId || "" // Optional: Store sessionId if available in token
         };
 
@@ -108,15 +108,16 @@ export const authenticateOptional = async (
             const decoded = verifyAccessToken(accessToken) as AccessTokenPayload;
             const user = await prisma.users.findUnique({
                 where: { id: decoded.id },
-                select: { id: true, email: true, role: true }
+                select: { id: true, email: true, role: true, name: true }
             });
-
+            
             if (user) {
                 req.user = {
                     id: user.id,
                     email: user.email,
                     role: user.role,
-                    sessionId: decoded.sessionId || ""
+                    sessionId: decoded.sessionId || "",
+                    name: user.name
                 };
             }
 

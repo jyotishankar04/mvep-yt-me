@@ -28,7 +28,7 @@ export default function CheckoutPage() {
        {/* Checkout Header */}
        <header className="border-b bg-slate-50 sticky top-0 z-50">
           <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-5xl">
-             <div className="font-bold text-2xl italic text-slate-900">MarketHub</div>
+             <div className="font-bold text-2xl italic   ">MarketHub</div>
              <h1 className="text-xl font-normal text-slate-600">Checkout</h1>
              <Lock className="h-5 w-5 text-slate-400" />
           </div>
@@ -76,7 +76,7 @@ export default function CheckoutPage() {
                          <Plus className="h-4 w-4" /> Add a new address
                       </div>
 
-                      <Button onClick={() => setCurrentStep(STEPS.PAYMENT)} className="mt-6 bg-yellow-400 text-slate-900 hover:bg-yellow-500">
+                      <Button onClick={() => setCurrentStep(STEPS.PAYMENT)} className="mt-6      hover: ">
                          Use this address
                       </Button>
                    </div>
@@ -123,7 +123,7 @@ export default function CheckoutPage() {
                          </div>
                       </RadioGroup>
 
-                      <Button onClick={() => setCurrentStep(STEPS.REVIEW)} className="mt-4 bg-yellow-400 text-slate-900 hover:bg-yellow-500">
+                      <Button onClick={() => setCurrentStep(STEPS.REVIEW)} className="mt-4      hover: ">
                          Use this payment method
                       </Button>
                    </div>
@@ -158,7 +158,7 @@ export default function CheckoutPage() {
                       </div>
 
                       <Link href="/checkout/success">
-                         <Button className="w-full md:w-auto bg-yellow-400 text-slate-900 hover:bg-yellow-500 px-8">
+                         <Button className="w-full md:w-auto      hover:  px-8">
                             Place your order
                          </Button>
                       </Link>
@@ -177,7 +177,7 @@ export default function CheckoutPage() {
              <Card className="sticky top-24 border-slate-200 bg-white">
                 <CardContent className="p-4 space-y-4">
                    <Link href="/checkout/success">
-                      <Button className="w-full bg-yellow-400 text-slate-900 hover:bg-yellow-500 mb-2">
+                      <Button className="w-full      hover:  mb-2">
                          Place your order
                       </Button>
                    </Link>

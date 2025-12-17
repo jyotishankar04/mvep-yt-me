@@ -47,7 +47,7 @@ const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                 <div className={`absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex flex-col justify-end p-8 md:p-16 text-white`}>
                   <h2 className="text-3xl md:text-5xl font-bold mb-2 drop-shadow-lg">{slide.title}</h2>
                   <p className="text-lg md:text-xl font-medium drop-shadow-md mb-4">{slide.sub}</p>
-                  <Button className="w-fit bg-yellow-400 text-slate-900 hover:bg-yellow-500 font-bold border-none">
+                  <Button className="w-fit      hover:  font-bold border-none">
                     Check it out
                   </Button>
                 </div>

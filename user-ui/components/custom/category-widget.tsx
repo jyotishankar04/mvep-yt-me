@@ -21,9 +21,11 @@ const CategoryWidget = ({ widget }: CategoryWidgetProps) => {
         
         {widget.type === "auth" ? (
           <div className="flex flex-col gap-4 mt-2">
-            <Button className="w-full bg-yellow-400 text-slate-900 hover:bg-yellow-500 font-bold text-sm">
-              Sign in securely
-            </Button>
+            <Link href={'/auth/login'} >
+              <Button className="w-full      hover:  font-bold text-sm">
+                Sign in securely
+              </Button>
+            </Link>
             <div className="relative h-[200px] w-full bg-slate-100 rounded mt-2 overflow-hidden">
               <img 
                 src="https://placehold.co/300x200/eef2ff/4f46e5?text=New+Arrivals" 

@@ -86,7 +86,7 @@ export default function OrdersPage() {
                             Sony WH-1000XM5 Wireless Noise Cancelling Headphones
                          </Link>
                          <div className="flex gap-2">
-                            <Button size="sm" className="bg-yellow-400 text-slate-900 hover:bg-yellow-500">Track package</Button>
+                            <Button size="sm" className="     hover: ">Track package</Button>
                             <Button size="sm" variant="outline">View or edit order</Button>
                          </div>
                       </div>
@@ -115,7 +115,7 @@ export default function OrdersPage() {
                             Men's Cotton Casual Shirt - Regular Fit
                          </Link>
                          <div className="flex flex-wrap gap-2">
-                            <Button size="sm" className="bg-yellow-400 text-slate-900 hover:bg-yellow-500 flex items-center gap-1">
+                            <Button size="sm" className="     hover:  flex items-center gap-1">
                                <RotateCcw className="h-3 w-3" /> Buy it again
                             </Button>
                             <Button size="sm" variant="outline">Write a product review</Button>

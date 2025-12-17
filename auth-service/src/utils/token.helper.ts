@@ -12,6 +12,7 @@ export interface AccessTokenPayload {
   role: string;
   email: string;
   sessionId: string;
+  name: string;
   iat?: number;
   exp?: number;
 }
@@ -41,14 +42,14 @@ const REDIS_KEYS = {
 } as const;
 
 export const generateAccessToken = (data: AccessTokenPayload): string => {
-  return jwt.sign(data, _env.JWT_ACCESS_SECRET, { 
-    expiresIn: TOKEN_EXPIRY.ACCESS 
+  return jwt.sign(data, _env.JWT_ACCESS_SECRET, {
+    expiresIn: TOKEN_EXPIRY.ACCESS,
   });
 };
 
 export const generateRefreshToken = (sessionId: string): string => {
-  return jwt.sign({ sessionId }, _env.JWT_REFRESH_SECRET, { 
-    expiresIn: TOKEN_EXPIRY.REFRESH 
+  return jwt.sign({ sessionId }, _env.JWT_REFRESH_SECRET, {
+    expiresIn: TOKEN_EXPIRY.REFRESH,
   });
 };
 
@@ -56,6 +57,7 @@ export interface GenerateTokensData {
   id: string;
   role: string;
   email: string;
+  name: string;
   sessionId: string;
 }
 
@@ -65,7 +67,7 @@ export interface TokenPair {
 }
 
 export const generateTokens = async (
-  data: GenerateTokensData
+  data: GenerateTokensData,
 ): Promise<TokenPair> => ({
   accessToken: generateAccessToken(data),
   refreshToken: generateRefreshToken(data.sessionId),
@@ -100,10 +102,10 @@ export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
 };
 
 export const rotateTokens = async (
-  refreshToken: string
+  refreshToken: string,
 ): Promise<TokenPair> => {
   let sessionId: string;
-  
+
   try {
     const payload = verifyRefreshToken(refreshToken);
     sessionId = payload.sessionId;
@@ -118,7 +120,7 @@ export const rotateTokens = async (
   // Try to get session from Redis cache
   const sessionKey = REDIS_KEYS.session(sessionId);
   let sessionData: sessions | null = null;
-  
+
   try {
     const cachedSession = await redis.get(sessionKey);
     if (cachedSession) {
@@ -134,13 +136,13 @@ export const rotateTokens = async (
       sessionData = await prisma.sessions.findUnique({
         where: { id: sessionId },
       });
-      
+
       if (sessionData) {
         // Cache the session for future use
         await redis.setex(
           sessionKey,
           7 * 24 * 60 * 60, // 7 days in seconds
-          JSON.stringify(sessionData)
+          JSON.stringify(sessionData),
         );
       }
     } catch (error) {
@@ -155,7 +157,7 @@ export const rotateTokens = async (
   // Get user data
   const userKey = REDIS_KEYS.user(sessionData.user_id);
   let userData: Partial<users> | null = null;
-  
+
   try {
     const cachedUser = await redis.get(userKey);
     if (cachedUser) {
@@ -164,7 +166,7 @@ export const rotateTokens = async (
   } catch (error) {
     console.warn("Failed to parse cached user data:", error);
   }
-  
+
   if (!userData) {
     userData = await prisma.users.findUnique({
       where: { id: sessionData.id },
@@ -172,16 +174,17 @@ export const rotateTokens = async (
         id: true,
         email: true,
         role: true,
+        name: true,
         // Add other necessary fields
       },
     });
-    
+
     if (userData) {
       // Cache the user for future use (shorter TTL than session)
       await redis.setex(
         userKey,
         1 * 60 * 60, // 1 hour in seconds
-        JSON.stringify(userData)
+        JSON.stringify(userData),
       );
     }
   }
@@ -193,26 +196,31 @@ export const rotateTokens = async (
       role: userData?.role || "USER",
       email: userData?.email!,
       sessionId,
+      name: userData?.name!,
     }),
     refreshToken: generateRefreshToken(sessionId),
   };
 };
 
-export const generateSessionId = async(userId: string): Promise<string> => {
-    const session = await prisma.sessions.create({
-        data: {
-            user_id: userId
-        }
-    })
-    await redis.setex(REDIS_KEYS.session(session.id), 7 * 24 * 60 * 60, JSON.stringify(session))
-    return session.id
-}
+export const generateSessionId = async (userId: string): Promise<string> => {
+  const session = await prisma.sessions.create({
+    data: {
+      user_id: userId,
+    },
+  });
+  await redis.setex(
+    REDIS_KEYS.session(session.id),
+    7 * 24 * 60 * 60,
+    JSON.stringify(session),
+  );
+  return session.id;
+};
 
 export const setCookie = (
   res: Response,
   name: string,
   value: string,
-  options?: Partial<typeof COOKIE_OPTIONS>
+  options?: Partial<typeof COOKIE_OPTIONS>,
 ): void => {
   res.cookie(name, value, {
     ...COOKIE_OPTIONS,
@@ -223,7 +231,7 @@ export const setCookie = (
 export const clearCookie = (
   res: Response,
   name: string,
-  options?: Partial<typeof COOKIE_OPTIONS>
+  options?: Partial<typeof COOKIE_OPTIONS>,
 ): void => {
   res.clearCookie(name, {
     httpOnly: true,
@@ -241,10 +249,7 @@ export const clearAuthCookies = (res: Response): void => {
 };
 
 // Helper function to set auth cookies
-export const setAuthCookies = (
-  res: Response,
-  tokens: TokenPair
-): void => {
+export const setAuthCookies = (res: Response, tokens: TokenPair): void => {
   setCookie(res, "accessToken", tokens.accessToken, {
     maxAge: 15 * 60 * 1000, // 15 minutes for access token
   });

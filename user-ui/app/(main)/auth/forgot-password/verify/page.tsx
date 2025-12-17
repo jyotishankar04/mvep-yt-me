@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,17 +12,17 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp"
-import { useRegisterOtpVerify } from "@/utils/query"
+import { useForgotPasswordVerifyOtp } from "@/utils/query"
 
-export default function RegisterVerifyPage() {
+export default function ForgotPasswordVerifyPage() {
   const router = useRouter()
   const [otp, setOtp] = useState("")
   const [canResend, setCanResend] = useState(false)
   const [resendTimer, setResendTimer] = useState(60)
-
   const email = typeof window !== "undefined" 
-    ? localStorage.getItem("register_email") 
+    ? localStorage.getItem("forgot_password_email") 
     : ""
+    
   const maskedEmail = email ? 
     `...${email.substring(email.indexOf('@') - 2)}` : 
     "your email"
@@ -33,34 +33,44 @@ export default function RegisterVerifyPage() {
       const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
       return () => clearTimeout(timer)
     } else {
-      setCanResend(prev => !prev)
+      setCanResend(true)
     }
   }, [resendTimer])
 
-  const { mutate: verifyOtp, isLoading: isVerifying } = useRegisterOtpVerify()
+  const { mutateAsync: verifyOtp, isLoading: isVerifying } = useForgotPasswordVerifyOtp()
 
-  const handleVerify = useCallback(() => {
+  const handleVerify =async () => {
     if (otp.length !== 6) return
     
-    const token = localStorage.getItem("register_token")
-    if (!token) return
+    const token = localStorage.getItem("forgot_password_token")
+    // Redirect if no token
+    if (!token) {
+      router.push("/auth/forgot-password")
+      return
+    }
 
-    verifyOtp({
+    await verifyOtp({
       otp: otp,
       token: token
     }, {
-      onSuccess: () => {
-        localStorage.removeItem("register_token")
-        localStorage.removeItem("register_email")
-        router.push("/auth/login")
+      onSuccess: (data) => {
+        localStorage.removeItem("forgot_password_token")
+        localStorage.removeItem("forgot_password_email")
+        localStorage.setItem("forgot_password_token", data.data.redirect_token)
+        router.push("/auth/forgot-password/new?auth_token=" + token)
       }
     })
   }
-  , [otp, verifyOtp, router])
 
   const handleResend = () => {
-    const token = localStorage.getItem("register_token")
-    const email = localStorage.getItem("register_email")
+    const token = localStorage.getItem("forgot_password_token")
+    const email = localStorage.getItem("forgot_password_email")
+    
+    // Redirect if no token or email
+    if (!token || !email) {
+      router.push("/auth/forgot-password")
+      return
+    }
     
     fetch("http://localhost:8000/api/auth/resend-otp", {
       method: "POST",
@@ -71,13 +81,6 @@ export default function RegisterVerifyPage() {
     setCanResend(false)
     setResendTimer(60)
   }
-
-  // Auto-submit on complete
-  useEffect(() => {
-    if (otp.length === 6) {
-      handleVerify()
-    }
-  }, [otp, handleVerify])
 
   return (
     <Card className="shadow-sm border-slate-200 max-w-md mx-auto">
@@ -118,7 +121,7 @@ export default function RegisterVerifyPage() {
         </div>
 
         <Button 
-          className="w-full bg-yellow-400 text-slate-900 hover:bg-yellow-500 border border-yellow-500 font-normal shadow-sm"
+          className="w-full"
           onClick={handleVerify}
           disabled={isVerifying || otp.length !== 6}
         >

@@ -51,7 +51,7 @@ export default function CartPage() {
         <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
             <h1 className="text-2xl font-bold mb-4">Your MarketHub Cart is empty.</h1>
             <Link href="/">
-                <Button className="bg-yellow-400 text-slate-900 hover:bg-yellow-500">Shop today&apos;s deals</Button>
+                <Button className="     hover: ">Shop today&apos;s deals</Button>
             </Link>
         </div>
     )
@@ -140,7 +140,7 @@ export default function CartPage() {
                       <label htmlFor="gift-all">This order contains a gift</label>
                    </div>
 
-                   <Button className="w-full bg-yellow-400 text-slate-900 hover:bg-yellow-500 font-normal shadow-sm">
+                   <Button className="w-full      hover:  font-normal shadow-sm">
                       Proceed to Buy
                    </Button>
 

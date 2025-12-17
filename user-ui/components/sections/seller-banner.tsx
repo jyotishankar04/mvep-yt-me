@@ -13,7 +13,7 @@ const SellerBanner = () => {
         </p>
       </div>
       <div className="z-10 flex gap-4">
-        <Button className="bg-yellow-400 text-slate-900 hover:bg-yellow-500 font-bold shadow-md">
+        <Button className="     hover:  font-bold shadow-md">
           Start Selling
         </Button>
       </div>

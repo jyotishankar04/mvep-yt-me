@@ -14,3 +14,8 @@ export interface IOtpVerify {
     token: string
 }
 
+export interface IResetPassword{
+    token: string,
+    newPassword: string
+}
+

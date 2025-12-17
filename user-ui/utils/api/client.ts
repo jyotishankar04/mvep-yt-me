@@ -10,24 +10,70 @@ export const api = axios.create({
 })
 
 // Endpoint for refreshing the tokens
+// Endpoint for refreshing the tokens
 const refreshToken = async () => {
-     await axios.post(process.env.NEXT_PUBLIC_BACKEND_URL + '/auth/refresh-token',{}, {
+    await axios.get(process.env.NEXT_PUBLIC_BACKEND_URL + '/api/auth/refresh-token', {
         withCredentials: true
     })
     return
 }
-api.interceptors.response.use((response) => response, async (error) => {
-    const originalRequest = error.config
-    if (error.response.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true
-        try {
-            const headers = { ...originalRequest.headers }
-            await refreshToken()
-            return api.request({ ...originalRequest, headers })
-        } catch (err) {
-            console.log(err)
-            return Promise.reject(err)
-        }
+
+
+
+let isRefreshing = false
+let refreshSubscribers: (() => void)[] = []
+
+export const handleLogout = () => {
+    if (window.location.pathname !== "/auth/login") {
+        window.location.href = "/auth/login"
     }
-    return Promise.reject(error)
-})
+}
+
+const subscribeToRefresh = (callback: () => void) => {
+    refreshSubscribers.forEach((subscriber) => subscriber())
+    refreshSubscribers.push(callback)
+}
+
+const onRefreshSuccess = () => {
+    refreshSubscribers.forEach((subscriber) => subscriber())
+    refreshSubscribers = []
+}
+
+api.interceptors.request.use(
+    (config) => {
+        return config
+    },
+    (error) => {
+        return Promise.reject(error)
+    }
+)
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config
+        if (error.response.status.toString() === "401" || error.response.status.toString() === "403" && !originalRequest._retry) {
+            if (isRefreshing) {
+                return new Promise((resolve) => {
+                    subscribeToRefresh(() => {
+                        resolve(api(originalRequest))
+                    })
+                })
+            }
+            originalRequest._retry = true
+            isRefreshing = true
+            try {
+                await refreshToken()
+                onRefreshSuccess()
+                return api(originalRequest)
+            } catch (err) {
+                handleLogout()
+                refreshSubscribers = []
+                return Promise.reject(err)
+            } finally {
+                isRefreshing = false
+            }
+        }
+
+        return Promise.reject(error)
+    }
+)

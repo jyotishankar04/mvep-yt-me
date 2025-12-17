@@ -55,7 +55,7 @@ export default function ProductPage() {
          <span className="hover:underline cursor-pointer">Electronics</span> &rsaquo; 
          <span className="hover:underline cursor-pointer"> Mobiles & Accessories</span> &rsaquo; 
          <span className="hover:underline cursor-pointer"> Smartphones</span> &rsaquo; 
-         <span className="font-bold text-slate-900"> {PRODUCT.title}</span>
+         <span className="font-bold   "> {PRODUCT.title}</span>
       </div>
 
       <div className="container mx-auto px-4 max-w-7xl">
@@ -91,7 +91,7 @@ export default function ProductPage() {
           {/* ================= MIDDLE: INFO (4 cols) ================= */}
           <div className="lg:col-span-4 space-y-4">
              <div className="space-y-1">
-                <h1 className="text-2xl font-bold text-slate-900 leading-tight">{PRODUCT.title}</h1>
+                <h1 className="text-2xl font-bold    leading-tight">{PRODUCT.title}</h1>
                 <div className="text-sm text-blue-600 hover:underline cursor-pointer">Visit the Apple Store</div>
                 <div className="flex items-center gap-2">
                    <div className="flex text-orange-400 text-sm">
@@ -108,11 +108,11 @@ export default function ProductPage() {
              <div className="space-y-1">
                 <div className="flex items-center gap-2">
                    <span className="text-red-600 text-xl font-light">-14%</span>
-                   <span className="text-3xl font-bold text-slate-900">₹{PRODUCT.price.toLocaleString()}</span>
+                   <span className="text-3xl font-bold   ">₹{PRODUCT.price.toLocaleString()}</span>
                 </div>
                 <div className="text-xs text-slate-500">M.R.P.: <span className="line-through">₹{PRODUCT.oldPrice.toLocaleString()}</span></div>
-                <div className="text-sm text-slate-900">Inclusive of all taxes</div>
-                <div className="text-sm text-slate-900 mt-2"><span className="font-bold">EMI</span> starts at ₹{PRODUCT.emi}. No Cost EMI available.</div>
+                <div className="text-sm   ">Inclusive of all taxes</div>
+                <div className="text-sm    mt-2"><span className="font-bold">EMI</span> starts at ₹{PRODUCT.emi}. No Cost EMI available.</div>
              </div>
 
              <Separator />
@@ -157,7 +157,7 @@ export default function ProductPage() {
                 {PRODUCT.specs.map((spec, i) => (
                    <div key={i} className="grid grid-cols-2 py-1 gap-4">
                       <span className="text-slate-500 font-bold">{spec.label}</span>
-                      <span className="text-slate-900">{spec.value}</span>
+                      <span className="  ">{spec.value}</span>
                    </div>
                 ))}
              </div>
@@ -210,7 +210,7 @@ export default function ProductPage() {
                    </div>
 
                    <div className="space-y-2 pt-2">
-                      <Button className="w-full bg-yellow-400 text-slate-900 hover:bg-yellow-500 rounded-full font-normal shadow-sm">
+                      <Button className="w-full      hover:  rounded-full font-normal shadow-sm">
                          Add to Cart
                       </Button>
                       <Button className="w-full bg-orange-500 text-white hover:bg-orange-600 rounded-full font-normal shadow-sm">

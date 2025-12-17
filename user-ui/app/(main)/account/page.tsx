@@ -67,7 +67,7 @@ export default function AccountPage() {
                 <AvatarFallback>RS</AvatarFallback>
              </Avatar>
              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Hello, Rahul Sharma</h1>
+                <h1 className="text-2xl font-bold   ">Hello, Rahul Sharma</h1>
                 <p className="text-slate-500">MarketHub Customer since 2021</p>
              </div>
           </div>
@@ -85,7 +85,7 @@ export default function AccountPage() {
                             <link.icon className="h-6 w-6" />
                          </div>
                          <div>
-                            <h3 className="font-bold text-lg text-slate-900 mb-1">{link.title}</h3>
+                            <h3 className="font-bold text-lg    mb-1">{link.title}</h3>
                             <p className="text-sm text-slate-500 leading-tight">{link.desc}</p>
                          </div>
                       </CardContent>
