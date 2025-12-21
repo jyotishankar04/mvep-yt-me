@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { errorMiddleware } from './middlewares/error-middleware';
 import authRoutes from './routes/auth.routes';
-import swaggerUi    from 'swagger-ui-express';
+import swaggerUi from 'swagger-ui-express';
 import cookieParser from 'cookie-parser';
 
 const swaggerDocument = require('./swagger-output.json');
@@ -12,7 +12,17 @@ const app = express();
 
 app.use(cors(
     {
-        origin: ["http://localhost:3000"],
+        origin: (origin, callback) => {
+            const allowedOrigins = [
+                "http://localhost:3000",
+                "http://localhost:5173"
+            ]
+            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
         allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true
     }

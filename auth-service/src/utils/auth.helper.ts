@@ -54,7 +54,7 @@ export const persistUser = async (data: { name: string, email: string, password:
     await redis.set(`redirectToken:${token}`, email, 'EX', 300);
     return { token };
 }
-export const getUserFromToken = async (token: string, next: NextFunction): Promise<{ name: string, email: string, password: string, phone_number?: string, country?: string, role?: string } | void> => {
+export const getUserFromToken = async (token: string, next: NextFunction): Promise<{ name: string, email: string, password: string, phone_number?: string, country?: string, role?: string, phone_no?: string } | void> => {
     const email = await redis.get(`redirectToken:${token}`);
     if (!email) {
         return next(new ValidationError("Invalid token"));
@@ -122,4 +122,23 @@ export const deleteSession = async (token: string,sessionId: string) => {
         }
     })
     await redis.del(`redirectToken:${token}`);
+}
+
+
+// Seller
+export const persistSeller = async (data: { name: string, email: string, password: string, phone_number?: string, country?: string}) => {
+    const { name, email, password, phone_number, country} = data;
+    const user = {
+        name,
+        email,
+        password,
+        phone_number,
+        country,
+    }
+    // we should identify the user by decoding the token
+    await redis.set(`user:${email}`, JSON.stringify(user), 'EX', 3600);
+    // dont send the direct email as token ELSE encrypt it
+    const token = crypto.randomBytes(32).toString('hex');
+    await redis.set(`redirectToken:${token}`, email, 'EX', 300);
+    return { token };
 }

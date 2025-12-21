@@ -155,7 +155,7 @@ export const rotateTokens = async (
   }
 
   // Get user data
-  const userKey = REDIS_KEYS.user(sessionData.user_id);
+  const userKey = REDIS_KEYS.user(sessionData?.user_id!);
   let userData: Partial<users> | null = null;
 
   try {
@@ -202,7 +202,20 @@ export const rotateTokens = async (
   };
 };
 
-export const generateSessionId = async (userId: string): Promise<string> => {
+export const generateSessionId = async (userId: string,type?:'USER' | 'SELLER'): Promise<string> => {
+  if(type === 'SELLER'){
+    const session = await prisma.sessions.create({
+      data: {
+        seller_id: userId,
+      },
+    });
+    await redis.setex(
+      REDIS_KEYS.session(session.id),
+      7 * 24 * 60 * 60,
+      JSON.stringify(session),
+    );
+    return session.id
+  }
   const session = await prisma.sessions.create({
     data: {
       user_id: userId,

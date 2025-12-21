@@ -3,7 +3,7 @@
  * This is only a minimal backend to get started.
  */
 
-import express,{type Request} from 'express';
+import express, { type Request } from 'express';
 import cors from 'cors';
 import proxy from 'express-http-proxy';
 import margan from 'morgan';
@@ -17,11 +17,25 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({
-  origin: ["http://localhost:3000"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}))
+
+app.use(cors(
+  {
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "http://localhost:5173"
+      ]
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  }
+));
+
 
 app.use(margan('dev'));
 app.use(express.json({
@@ -51,9 +65,11 @@ app.get('/gateway/health', (req, res) => {
 
 
 // Redirect all requests with prefix to the services
-app.use('/api/auth', proxy('http://localhost:6001/api/auth', { proxyReqPathResolver: (req: Request) => {
-  return `/api/auth${req.url}`
-} }));
+app.use('/api/auth', proxy('http://localhost:6001/api/auth', {
+  proxyReqPathResolver: (req: Request) => {
+    return `/api/auth${req.url}`
+  }
+}));
 
 const port = process.env.PORT || 8000;
 

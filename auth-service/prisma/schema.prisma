@@ -18,26 +18,82 @@ model images {
   file_id String
   url     String
   user_id String @unique
+  shop_id String @unique
+  shop    shops  @relation(fields: [shop_id], references: [id])
   user    users  @relation(fields: [user_id], references: [id])
 }
 
 model users {
-  id        String   @id @default(ulid())
-  name      String
-  email     String   @unique
-  password  String?
-  avatar    images?
-  following String[]
-  sessions sessions[]
-  role      String   @default("USER")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id         String     @id @default(ulid())
+  name       String
+  email      String     @unique
+  password   String?
+  avatar     images?
+  following  String[]
+  sessions   sessions[]
+  role       String     @default("USER")
+  created_at DateTime   @default(now())
+  updated_at DateTime   @updatedAt
+
+  shopReviews shop_reviews[]
 }
 
 model sessions {
   id         String   @id @default(ulid())
+  user_id    String?
+  user       users?    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  seller_id  String?
+  seller     sellers?  @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model shop_reviews {
+  id         String   @id @default(ulid())
+  rating     Float
+  comment    String?
   user_id    String
   user       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  shop_id    String
+  shop       shops    @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model shops {
+  id            String         @id @default(ulid())
+  name          String
+  bio           String?
+  category      String
+  avatar        images?
+  coverBanner   String?
+  address       String
+  opening_hours String?
+  website       String?
+  socialLinks   Json[]
+  rating        Float?         @default(0)
+  reviews       shop_reviews[]
+
+  seller_id  String   @unique
+  seller     sellers  @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model sellers {
+  id        String @id @default(ulid())
+  name      String
+  email     String @unique
+  phone_no  String
+  password  String
+  country   String
+  stripe_id String
+
+  sessions sessions[]
+
+  shop_id String?
+  shop    shops[]
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }

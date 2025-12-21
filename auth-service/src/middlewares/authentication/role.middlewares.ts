@@ -5,7 +5,6 @@ import { AuthError } from "../error-handler";
 // Define role hierarchy (higher number = more permissions)
 export const ROLES = {
   ADMIN: "admin",
-  SELLER: "seller", 
   USER: "user"
 } as const;
 
@@ -14,7 +13,6 @@ export type UserRole = typeof ROLES[keyof typeof ROLES];
 // Role hierarchy map for permission checking
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   [ROLES.ADMIN]: 3,
-  [ROLES.SELLER]: 2,
   [ROLES.USER]: 1
 };
 

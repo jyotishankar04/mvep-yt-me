@@ -32,4 +32,11 @@ router.post(
   authController.logoutUser.bind(authController),
 );
 
+
+// seller routes
+router.post("/seller/register", authController.sellerRegistration.bind(authController));
+router.post("/seller/verify", authController.verifySeller.bind(authController));
+router.post("/seller/login", authController.loginSeller.bind(authController));
+
+
 export default router;

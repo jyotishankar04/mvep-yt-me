@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { loginSchema, registerSchema } from "../validator/auth.validator";
+import { loginSchema, registerSchema, sellerRegistrationSchema } from "../validator/auth.validator";
 import { AuthError, ValidationError } from "../middlewares/error-handler";
 import prisma from "../config/prisma";
 import {
@@ -7,6 +7,7 @@ import {
   deleteSession,
   getUserFromResetToken,
   getUserFromToken,
+  persistSeller,
   persistUser,
   resetPasswordToken,
   sendOtp,
@@ -294,6 +295,130 @@ class AuthController {
       return next(error);
     }
   }
+  async sellerRegistration(req: Request, res: Response, next: NextFunction) {
+    const validate = sellerRegistrationSchema.safeParse(req.body);
+    if (!validate.success) {
+      return next(new ValidationError("Invalid Fields! Seller registration not allowed"));
+    }
+    const existSeller = await prisma.sellers.findUnique({
+      where: {
+        email: validate.data?.email
+      },
+      select: {
+        email: true,
+      }
+    });
+
+    if (existSeller) {
+      return next(new ValidationError("Seller already exist"));
+    }
+
+    await checkOtpRestriction(validate.data.email, next);
+    await trackOtpRequest(validate.data.email, next);
+    await sendOtp(
+      validate.data.name,
+      validate.data.email,
+      "seller-activation-mail",
+    );
+    const { token } = await persistSeller(validate.data);
+
+    if (!token) {
+      return next(new ValidationError("Seller registration not allowed"));
+    }
+
+    return res.status(200).json({
+      message: "OTP sent to your email",
+      success: true,
+      data: {
+        redirect_token: token,
+      },
+    });
+  }
+  async verifySeller(req: Request, res: Response, next: NextFunction) {
+    const { otp, token } = req.body;
+    if (!otp || !token || !otp.trim() || !token.trim()) {
+      return next(new ValidationError("Invalid request data"));
+    }
+    const user = await getUserFromToken(token, next);
+    const existSeller = await prisma.sellers.findUnique({
+      where: {
+        email: user?.email,
+      },
+    });
+
+    if (existSeller) {
+      return next(new ValidationError("Seller already exist"));
+    }
+
+    await verifyOtp(user?.email!, token, otp, next);
+    const hashedPassword = await bcrypt.hash(user?.password!, 10);
+    try {
+      await prisma.sellers.create({
+        data: {
+          name: user?.name!,
+          email: user?.email!,
+          password: hashedPassword,
+          country: user?.country!,
+          phone_no: user?.phone_number!,
+          stripe_id: ""
+        },
+      })
+    } catch (error) {
+      
+    }
+    return res.status(200).json({
+      message: "Seller verified successfully",
+      success: true,
+    });
+  }
+
+  async loginSeller(req: Request, res: Response, next: NextFunction) {
+    try {
+      const validate = loginSchema.safeParse(req.body);
+      if (!validate.success) {
+        throw new ValidationError(JSON.stringify(validate.error));
+      }
+      const seller = await prisma.sellers.findUnique({
+        where: {
+          email: validate.data.email,
+        },
+      });
+      if (!seller) {
+        return next(new AuthError("Seller not found"));
+      }
+      const isPasswordValid = await bcrypt.compare(
+        validate.data.password,
+        seller.password!,
+      );
+      if (!isPasswordValid) {
+        return next(new AuthError("Invalid credentials"));
+      }
+
+      const sessionId = await generateSessionId(seller.id);
+
+      const { accessToken, refreshToken } = await generateTokens({
+        sessionId,
+        id: seller.id,
+        email: seller.email,
+        name: seller.name,
+        role: "seller",
+      });
+
+      setAuthCookies(res, {
+        accessToken,
+        refreshToken,
+      });
+
+      return res.status(200).json({
+        message: "Login successful",
+        success: true,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+
 }
 
 export default AuthController;
