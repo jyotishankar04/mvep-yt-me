@@ -6,6 +6,15 @@ export interface ISellerRegister {
     phone_number: string,
 }
 
+export interface ISetupSeller {
+    businessName: string,
+    businessBio: string,
+    address: string,
+    openingHours: string,
+    website: string,
+    category: string
+}
+
 export interface IUserLogin {
     email: string,
     password: string

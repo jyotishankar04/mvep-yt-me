@@ -37,6 +37,9 @@ router.post(
 router.post("/seller/register", authController.sellerRegistration.bind(authController));
 router.post("/seller/verify", authController.verifySeller.bind(authController));
 router.post("/seller/login", authController.loginSeller.bind(authController));
+router.post("/seller/setup", authenticate, authController.setupSeller.bind(authController));
+router.post("/seller/connect-stripe", authenticate, authController.connectStripe.bind(authController));
+
 
 
 export default router;

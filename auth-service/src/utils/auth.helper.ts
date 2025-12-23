@@ -3,7 +3,7 @@ import { NextFunction } from 'express';
 import redis from '../config/redis';
 import { sendMail } from '../config/mail';
 import { ValidationError } from '../middlewares/error-handler';
-import { users } from '../generated/prisma';
+import { sellers, users } from '../generated/prisma';
 import prisma from '../config/prisma';
 
 export const checkOtpRestriction = async (email: string, next: NextFunction) => {
@@ -68,6 +68,8 @@ export const getUserFromToken = async (token: string, next: NextFunction): Promi
 }
 
 
+
+
 export const verifyOtp = async (email: string, token: string, otp: string, next: NextFunction) => {
     const storedOtp = await redis.get(`otp:${email}`);
     const failedAttemptsKey = `otp_attempts:${email}`;
@@ -113,7 +115,7 @@ export const getUserFromResetToken = async (token: string, next: NextFunction) =
     return user;
 }
 
-export const deleteSession = async (token: string,sessionId: string) => {
+export const deleteSession = async (token: string, sessionId: string) => {
     await redis.del(`session:${sessionId}`);
     await redis.del(`token_blacklist:${token}`);
     await prisma.sessions.delete({
@@ -126,8 +128,8 @@ export const deleteSession = async (token: string,sessionId: string) => {
 
 
 // Seller
-export const persistSeller = async (data: { name: string, email: string, password: string, phone_number?: string, country?: string}) => {
-    const { name, email, password, phone_number, country} = data;
+export const persistSeller = async (data: { name: string, email: string, password: string, phone_number?: string, country?: string }) => {
+    const { name, email, password, phone_number, country } = data;
     const user = {
         name,
         email,
@@ -141,4 +143,8 @@ export const persistSeller = async (data: { name: string, email: string, passwor
     const token = crypto.randomBytes(32).toString('hex');
     await redis.set(`redirectToken:${token}`, email, 'EX', 300);
     return { token };
+}
+
+export const setSellerToRedis = async (data:sellers) => {
+    await redis.setex(`sellers:${data.id}`,3600, JSON.stringify(data) );
 }

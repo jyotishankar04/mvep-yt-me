@@ -1,7 +1,7 @@
 "use client";
 import { useMutation } from "@tanstack/react-query";
-import type { IOtpVerify, IResetPassword, IUserLogin, ISellerRegister} from "@/types/api.type";
-import { otpVerify, registerSeller } from "../api/apis";
+import type { IOtpVerify, IUserLogin, ISellerRegister, ISetupSeller } from "@/types/api.type";
+import { login, otpVerify, registerSeller, setupSeller } from "../api/apis";
 // import { useUser } from "@/hooks/use-user";
 
 export const useRegisterSeller = () => {
@@ -16,30 +16,14 @@ export const useSellerRegisterVerify = () => {
     });
 };
 
-// export const useLoginUser = () => {
-//     // const {refetch} = useUser();
-//     return useMutation({
-//         mutationFn: (user: IUserLogin) => loginUser(user),
-//         onSuccess: () => {
-//             refetch()
-//         }
-//     });
-// };
+export const useSellerSetup = () => {
+    return useMutation({
+        mutationFn: (user: ISetupSeller) => setupSeller(user)
+    });
+};
 
-// export const useForgotPassword = () => {
-//     return useMutation({
-//         mutationFn: (data:{email:string}) => forgotPassword(data)
-//     });
-// };
-
-// export const useForgotPasswordVerifyOtp = () => {
-//     return useMutation({
-//         mutationFn: (otp: IOtpVerify) => forgotPasswordVerifyOtp(otp)
-//     });
-// };
-
-// export const useResetPassword = () => {
-//     return useMutation({
-//         mutationFn: (data:IResetPassword) => resetPassword(data)
-//     });
-// };
+export const useSellerLogin = () => {
+    return useMutation({
+        mutationFn: (user: IUserLogin) => login(user)
+    });
+};

@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useForm } from "react-hook-form"
-import { useEffect } from "react"
-import { toast } from "sonner"
+import { useSellerLogin } from "@/utils/query"
 import { AxiosError } from "axios"
-import { Link, useLocation } from "react-router-dom"
+import { useEffect } from "react"
+import { useForm } from "react-hook-form"
+import { Link, useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
 type FormData = {
   email: string
@@ -15,25 +16,35 @@ type FormData = {
 }
 
 export default function LoginPage() {
-  const router = useLocation()
+  const router = useNavigate()
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>()
-  // const { mutate: loginUser, isLoading: isLoggingIn, isError: isLoggingInError, error: loginError } = useLoginUser()
+  const { mutateAsync: loginUser, isPending: isLoggingIn, isError: isLoggingInError, error: loginError, isSuccess: isLoginSuccess } = useSellerLogin()
 
-  // useEffect(() => {
-  //   if (isLoggingInError && loginError instanceof AxiosError) {
-  //     toast.error(loginError.response?.data.message, {
-  //       icon: "🚫",
-  //     })
-  //   }
-  // }, [isLoggingInError, loginError])
+  useEffect(() => {
+    if (isLoggingInError && loginError instanceof AxiosError) {
+      toast.error(loginError.response?.data.message, {
+        icon: "🚫",
+      })
+    }
+  }, [isLoggingInError, loginError])
 
-  // const onLogin = (data: FormData) => {
-  //   loginUser(data, {
-  //     onSuccess: () => {
-  //       router.push("/")
-  //     }
-  //   })
-  // }
+  const onLogin = handleSubmit(async (data: FormData) => {
+    loginUser(data,{
+      onSuccess: (data) => {
+          if(data && data.data && data.data.status){
+              if(data.data.status === "SETUP"){
+                  router("/auth/register?step=2");
+              }else if(data.data.status === "CONNECT"){
+                  router("/auth/register?step=3");
+              }else if(data.data.status === "COMPLETED"){
+                  router("/app"); 
+              }else{
+                  router("/auth/register?step=1");
+              }
+          }
+      }
+    })
+  })
 
   return (
     <Card className="shadow-sm  max-w-md mx-auto">
@@ -42,7 +53,7 @@ export default function LoginPage() {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <form  className="space-y-4">
+        <form onSubmit={onLogin} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="font-bold ">Email</Label>
             <Input
@@ -92,23 +103,11 @@ export default function LoginPage() {
           <Button
             type="submit"
             className="w-full"
-            // disabled={isLoggingIn}
+            disabled={isLoggingIn}
           >
-            Sign in
-            {/* {isLoggingIn ? "Signing in..." : "Sign in"} */}
+            {isLoggingIn ? "Signing in..." : "Sign in"}
           </Button>
         </form>
-
-        <div className="relative py-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t d" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="">Or continue with</span>
-          </div>
-        </div>
-
-        {/* <GoogleAuthButton disabled={isLoggingIn} /> */}
 
         <div className="pt-4 text-center text-sm">
           New to MarketHub Sellers?{" "}

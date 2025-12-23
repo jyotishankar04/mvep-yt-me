@@ -13,6 +13,14 @@ datasource db {
   provider = "postgresql"
 }
 
+
+enum SellerAccountCreationStatus {
+  SETUP
+  CONNECT
+  COMPLETED
+  INIT
+}
+
 model images {
   id      String @id @default(ulid())
   file_id String
@@ -88,6 +96,8 @@ model sellers {
   password  String
   country   String
   stripe_id String
+
+  registration_status SellerAccountCreationStatus @default(INIT)
 
   sessions sessions[]
 

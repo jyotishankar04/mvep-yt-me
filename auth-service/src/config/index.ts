@@ -15,6 +15,8 @@ const envSchema = Object.freeze(z.object({
     SMTP_USER: z.string(),
     JWT_ACCESS_SECRET: z.string(),
     JWT_REFRESH_SECRET: z.string(),
+    RAZORPAY_KEY_ID: z.string(),
+    RAZORPAY_KEY_SECRET: z.string()
 })).safeParse(process.env);
 
 if(envSchema.success === false) {

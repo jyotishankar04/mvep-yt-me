@@ -1,10 +1,12 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Info, ArrowRight, ArrowLeft, CheckCircle } from "lucide-react"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { Link } from "react-router-dom"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useSearchParams, useNavigate } from "react-router-dom"
+import { Spinner } from "@/components/ui/spinner"
 
 // Shadcn Imports
 import { Button } from "@/components/ui/button"
@@ -21,7 +23,10 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { useRegisterSeller, useSellerRegisterVerify } from "@/utils/query"
+import { useRegisterSeller, useSellerRegisterVerify, useSellerSetup } from "@/utils/query"
+import { toast } from "sonner"
+import { AxiosError } from "axios"
+import { IconBrandStripe } from "@tabler/icons-react"
 
 // ==================== ZOD SCHEMAS ====================
 
@@ -53,185 +58,185 @@ type SellerFormData = z.infer<typeof sellerSchema>
 
 // ==================== STEP 1: CREATE ACCOUNT ====================
 interface Step1Props {
-  onComplete: (data: AccountFormData) => void
-  onBack?: () => void
+    onComplete: (data: AccountFormData) => void
+    onBack?: () => void
 }
 const Step1: React.FC<Step1Props> = ({ onComplete, onBack }) => {
-  const [otpSent, setOtpSent] = useState(false)
-  const [redirectToken, setRedirectToken] = useState<string | null>(null)
+    const [otpSent, setOtpSent] = useState(false)
+    const [redirectToken, setRedirectToken] = useState<string | null>(null)
 
-  const {
-    mutateAsync: sendRegisterOtp,
-    isLoading: isSendingOtp,
-  } = useRegisterSeller()
+    const {
+        mutateAsync: sendRegisterOtp,
+        isLoading: isSendingOtp,
+    } = useRegisterSeller()
 
-  const {
-    mutateAsync: verifyRegisterOtp,
-    isLoading: isVerifyingOtp,
-  } = useSellerRegisterVerify()
+    const {
+        mutateAsync: verifyRegisterOtp,
+        isLoading: isVerifyingOtp,
+    } = useSellerRegisterVerify()
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    trigger,
-    getValues,
-    formState: { errors },
-  } = useForm<AccountFormData>({
-    resolver: zodResolver(accountSchema),
-    defaultValues: {
-      country: "",
-    },
-  })
-
-  const COUNTRIES = [
-    { code: "US", name: "United States" },
-    { code: "CA", name: "Canada" },
-    { code: "GB", name: "United Kingdom" },
-    { code: "AU", name: "Australia" },
-    { code: "DE", name: "Germany" },
-    { code: "FR", name: "France" },
-    { code: "JP", name: "Japan" },
-    { code: "IN", name: "India" },
-  ]
-
-  // 1️⃣ SEND OTP
-  const handleSendOtp = async (data: AccountFormData) => {
-    const res = await sendRegisterOtp({
-      name: data.name,
-      email: data.email,
-      phone_number: data.phone,
-      country: data.country,
-      password: data.password,
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        trigger,
+        getValues,
+        formState: { errors },
+    } = useForm<AccountFormData>({
+        resolver: zodResolver(accountSchema),
+        defaultValues: {
+            country: "",
+        },
     })
 
-    setRedirectToken(res.data.redirect_token)
-    setOtpSent(true)
-  }
+    const COUNTRIES = [
+        { code: "US", name: "United States" },
+        { code: "CA", name: "Canada" },
+        { code: "GB", name: "United Kingdom" },
+        { code: "AU", name: "Australia" },
+        { code: "DE", name: "Germany" },
+        { code: "FR", name: "France" },
+        { code: "JP", name: "Japan" },
+        { code: "IN", name: "India" },
+    ]
 
-  // 2️⃣ VERIFY OTP
-  const handleVerifyOtp = async (data: AccountFormData) => {
-    if (!redirectToken) return
+    // 1️⃣ SEND OTP
+    const handleSendOtp = async (data: AccountFormData) => {
+        const res = await sendRegisterOtp({
+            name: data.name,
+            email: data.email,
+            phone_number: data.phone,
+            country: data.country,
+            password: data.password,
+        })
 
-    await verifyRegisterOtp({
-      otp: data.otp!,
-      token: redirectToken,
-    })
-
-    onComplete(data)
-  }
-
-  const onSubmit = async (data: AccountFormData) => {
-    if (!otpSent) {
-      await handleSendOtp(data)
-    } else {
-      await handleVerifyOtp(data)
+        setRedirectToken(res.data.redirect_token)
+        setOtpSent(true)
     }
-  }
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {/* Name */}
-      <div className="space-y-2">
-        <Label className="font-bold">Full Name *</Label>
-        <Input placeholder="Jhon Doe" {...register("name")} />
-        {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
-      </div>
+    // 2️⃣ VERIFY OTP
+    const handleVerifyOtp = async (data: AccountFormData) => {
+        if (!redirectToken) return
 
-      {/* Email */}
-      <div className="space-y-2">
-        <Label className="font-bold">Email *</Label>
-        <Input placeholder="g9g7w@example.com" type="email" {...register("email")} />
-        {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
-      </div>
+        await verifyRegisterOtp({
+            otp: data.otp!,
+            token: redirectToken,
+        })
 
-      {/* Country + Phone */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="font-bold">Country *</Label>
-          <Select
-            onValueChange={async (value) => {
-              setValue("country", value)
-              await trigger("country")
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select country" />
-            </SelectTrigger>
-            <SelectContent>
-              {COUNTRIES.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.country && <p className="text-xs text-red-600">{errors.country.message}</p>}
-        </div>
+        onComplete(data)
+    }
 
-        <div className="space-y-2">
-          <Label className="font-bold">Phone *</Label>
-          <Input placeholder="+1 234 567 8901" {...register("phone")} />
-          {errors.phone && <p className="text-xs text-red-600">{errors.phone.message}</p>}
-        </div>
-      </div>
+    const onSubmit = async (data: AccountFormData) => {
+        if (!otpSent) {
+            await handleSendOtp(data)
+        } else {
+            await handleVerifyOtp(data)
+        }
+    }
 
-      {/* Password */}
-      <div className="space-y-2">
-        <Label className="font-bold">Password *</Label>
-        <Input placeholder="Password" type="password" {...register("password")} />
-        {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
-      </div>
+    return (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Name */}
+            <div className="space-y-2">
+                <Label className="font-bold">Full Name *</Label>
+                <Input placeholder="Jhon Doe" {...register("name")} />
+                {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+            </div>
 
-      {/* Confirm Password */}
-      <div className="space-y-2">
-        <Label className="font-bold">Confirm Password *</Label>
-        <Input placeholder="Confirm Password" type="password" {...register("password_confirm")} />
-        {errors.password_confirm && (
-          <p className="text-xs text-red-600">{errors.password_confirm.message}</p>
-        )}
-      </div>
+            {/* Email */}
+            <div className="space-y-2">
+                <Label className="font-bold">Email *</Label>
+                <Input placeholder="g9g7w@example.com" type="email" {...register("email")} />
+                {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
+            </div>
 
-      {/* OTP */}
-      {otpSent && (
-        <div className="space-y-2 animate-in fade-in-50">
-          <Label className="font-bold">Verification Code *</Label>
+            {/* Country + Phone */}
+            <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label className="font-bold">Country *</Label>
+                    <Select
+                        onValueChange={async (value) => {
+                            setValue("country", value)
+                            await trigger("country")
+                        }}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {COUNTRIES.map((c) => (
+                                <SelectItem key={c.code} value={c.code}>
+                                    {c.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {errors.country && <p className="text-xs text-red-600">{errors.country.message}</p>}
+                </div>
 
-          <div className="flex gap-2">
-            <Input
-              {...register("otp", { required: "OTP is required" })}
-              placeholder="Enter OTP"
-            />
+                <div className="space-y-2">
+                    <Label className="font-bold">Phone *</Label>
+                    <Input placeholder="+1 234 567 8901" {...register("phone")} />
+                    {errors.phone && <p className="text-xs text-red-600">{errors.phone.message}</p>}
+                </div>
+            </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isSendingOtp}
-              onClick={() => handleSendOtp(getValues())}
-            >
-              Resend
-            </Button>
-          </div>
+            {/* Password */}
+            <div className="space-y-2">
+                <Label className="font-bold">Password *</Label>
+                <Input placeholder="Password" type="password" {...register("password")} />
+                {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
+            </div>
 
-          {errors.otp && <p className="text-xs text-red-600">{errors.otp.message}</p>}
-        </div>
-      )}
+            {/* Confirm Password */}
+            <div className="space-y-2">
+                <Label className="font-bold">Confirm Password *</Label>
+                <Input placeholder="Confirm Password" type="password" {...register("password_confirm")} />
+                {errors.password_confirm && (
+                    <p className="text-xs text-red-600">{errors.password_confirm.message}</p>
+                )}
+            </div>
 
-      <Separator />
+            {/* OTP */}
+            {otpSent && (
+                <div className="space-y-2 animate-in fade-in-50">
+                    <Label className="font-bold">Verification Code *</Label>
 
-      <div className="flex justify-between">
-        {onBack && (
-          <Button type="button" variant="outline" onClick={onBack}>
-            Back
-          </Button>
-        )}
+                    <div className="flex gap-2">
+                        <Input
+                            {...register("otp", { required: "OTP is required" })}
+                            placeholder="Enter OTP"
+                        />
 
-        <Button type="submit" disabled={isSendingOtp || isVerifyingOtp}>
-          {otpSent ? "Verify & Continue" : "Send Verification Code"}
-        </Button>
-      </div>
-    </form>
-  )
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isSendingOtp}
+                            onClick={() => handleSendOtp(getValues())}
+                        >
+                            Resend
+                        </Button>
+                    </div>
+
+                    {errors.otp && <p className="text-xs text-red-600">{errors.otp.message}</p>}
+                </div>
+            )}
+
+            <Separator />
+
+            <div className="flex justify-between">
+                {onBack && (
+                    <Button type="button" variant="outline" onClick={onBack}>
+                        Back
+                    </Button>
+                )}
+
+                <Button type="submit" disabled={isSendingOtp || isVerifyingOtp}>
+                    {otpSent ? "Verify & Continue" : "Send Verification Code"}
+                </Button>
+            </div>
+        </form>
+    )
 }
 
 // ==================== STEP 2: SETUP SELLER ====================
@@ -256,8 +261,8 @@ const Step2: React.FC<Step2Props> = ({ onComplete, onBack }) => {
             address: "",
             website: "",
         },
-
     })
+    const { mutateAsync: setupSeller, isLoading: isSetupLoading, isError: isSetupError, error: setupError } = useSellerSetup()
 
     const CATEGORIES = [
         "Electronics",
@@ -272,8 +277,28 @@ const Step2: React.FC<Step2Props> = ({ onComplete, onBack }) => {
         "Toys & Games",
     ]
 
+    const onSetupSeller = handleSubmit(async (data) => {
+        await setupSeller({
+            businessName: data.businessName,
+            businessBio: data.bio || "",
+            address: data.address,
+            openingHours: data.openingHours,
+            website: data.website || "",
+            category: data.category
+        })
+
+        onComplete(data);
+    })
+    useEffect(() => {
+        if (isSetupError && setupError instanceof AxiosError) {
+            toast.error(setupError?.response?.data.message, {
+                
+            });
+        }
+    }, [isSetupError, setupError])
+
     return (
-        <form onSubmit={handleSubmit(onComplete)} className="space-y-4">
+        <form onSubmit={onSetupSeller} className="space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="businessName" className="font-bold">Business Name *</Label>
                 <Input
@@ -370,7 +395,11 @@ const Step2: React.FC<Step2Props> = ({ onComplete, onBack }) => {
                 <Button
                     type="submit"
                     className="gap-2"
+                    disabled={isSetupLoading}
                 >
+                    {isSetupLoading && (
+                        <Spinner />
+                    )}
                     Save & Continue
                     <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -428,7 +457,10 @@ const Step3: React.FC<Step3Props> = ({ onComplete, onBack }) => {
                                 Connected
                             </>
                         ) : (
-                            "Connect with Stripe"
+                            <>
+                                Connect to Stripe
+                                <IconBrandStripe className="" />
+                            </>
                         )}
                     </Button>
                     <p className="text-xs text-muted-foreground">
@@ -609,7 +641,13 @@ const Step1Footer = () => {
 // ==================== MAIN COMPONENT ====================
 
 export default function RegisterPage() {
-    const [step, setStep] = useState(1)
+    const [searchParams, setSearchParams] = useSearchParams()
+    const navigate = useNavigate()
+
+    // Get step from URL params, default to 1
+    const urlStep = parseInt(searchParams.get('step') || '1')
+    const [step, setStep] = useState(Math.min(Math.max(urlStep, 1), 4)) // Clamp between 1-4
+
     const [formData, setFormData] = useState<{
         account: AccountFormData | null
         seller: SellerFormData | null
@@ -625,32 +663,55 @@ export default function RegisterPage() {
         "Complete Setup"
     ]
 
+    // Function to update step and URL params
+    const updateStep = (newStep: number) => {
+        setStep(newStep)
+        setSearchParams({ step: newStep.toString() })
+
+        // Scroll to top when changing steps
+        window.scrollTo(0, 0)
+    }
+
     const handleStep1Complete = (accountData: AccountFormData) => {
         setFormData(prev => ({ ...prev, account: accountData }))
-        setStep(2)
+        updateStep(2)
     }
 
     const handleStep2Complete = (sellerData: SellerFormData) => {
         setFormData(prev => ({ ...prev, seller: sellerData }))
-        setStep(3)
+        updateStep(3)
     }
 
     const handleStep3Complete = () => {
-        setStep(4)
+        updateStep(4)
         // Here you would typically submit all data to your API
         console.log("Complete form data:", formData)
     }
 
     const goBack = () => {
         if (step > 1) {
-            setStep(step - 1)
+            updateStep(step - 1)
         }
     }
+    useEffect(() => {
+        const currentStep = parseInt(searchParams.get('step') || '1')
+        const clampedStep = Math.min(Math.max(currentStep, 1), 4)
+
+        // Only update if different
+        if (clampedStep !== step) {
+            // Use setTimeout to avoid synchronous state update
+            const timeoutId = setTimeout(() => {
+                setStep(clampedStep)
+            }, 0)
+
+            return () => clearTimeout(timeoutId)
+        }
+    }, [searchParams, step])
 
     const getCurrentStep = () => {
         switch (step) {
             case 1:
-                return <Step1 onComplete={handleStep1Complete} />
+                return <Step1 onComplete={handleStep1Complete} onBack={goBack} />
             case 2:
                 return <Step2 onComplete={handleStep2Complete} onBack={goBack} />
             case 3:
@@ -658,31 +719,63 @@ export default function RegisterPage() {
             case 4:
                 return <Step4 />
             default:
-                return <Step1 onComplete={handleStep1Complete} />
+                return <Step1 onComplete={handleStep1Complete} onBack={goBack} />
         }
     }
 
     return (
-        <div className=" flex items-center justify-center p-4">
-            <Card className="w-full max-w-2xl shadow-lg">
-                <CardHeader className="pb-4">
-                    <div className="space-y-4">
-                        <CardTitle className="text-2xl font-normal text-center">
-                            {stepTitles[step - 1]}
-                        </CardTitle>
+        <Card className="w-full max-w-2xl shadow-lg mx-auto">
+            <CardHeader className="pb-4">
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate('/')}
+                            className="gap-1"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Home
+                        </Button>
 
-                        <ProgressIndicator step={step} />
+                        <div className="text-sm text-muted-foreground">
+                            Step {step} of 4
+                        </div>
                     </div>
-                </CardHeader>
 
-                <CardContent>
-                    <div className="space-y-6">
-                        {getCurrentStep()}
+                    <CardTitle className="text-2xl font-normal text-center">
+                        {stepTitles[step - 1]}
+                    </CardTitle>
 
-                        {step === 1 && <Step1Footer />}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                    <ProgressIndicator step={step} />
+                </div>
+            </CardHeader>
+
+            <CardContent>
+                <div className="space-y-6">
+                    {getCurrentStep()}
+
+                    {step === 1 && <Step1Footer />}
+
+                    {/* Direct step navigation (optional, for debugging) */}
+                    {import.meta.env.NODE_ENV === 'development' && (
+                        <div className="flex gap-2 justify-center mt-4 pt-4 border-t">
+                            {[1, 2, 3, 4].map((s) => (
+                                <Button
+                                    key={s}
+                                    variant={s === step ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => updateStep(s)}
+                                    disabled={s > step && !formData.account}
+                                >
+                                    Step {s}
+                                </Button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+
     )
 }

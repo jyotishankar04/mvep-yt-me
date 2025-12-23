@@ -15,6 +15,7 @@ export interface AccessTokenPayload {
   name: string;
   iat?: number;
   exp?: number;
+  userType?: "USER" | "SELLER";
 }
 
 export interface RefreshTokenPayload {
@@ -66,12 +67,166 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+
+// Update generateTokens to include userType
 export const generateTokens = async (
-  data: GenerateTokensData,
+  data: GenerateTokensData & { userType?: 'USER' | 'SELLER' },
 ): Promise<TokenPair> => ({
-  accessToken: generateAccessToken(data),
+  accessToken: generateAccessToken({
+    ...data,
+    userType: data.userType || 'USER',
+  }),
   refreshToken: generateRefreshToken(data.sessionId),
 });
+
+// Update rotateTokens to handle both USER and SELLER
+export const rotateTokens = async (
+  refreshToken: string,
+): Promise<TokenPair> => {
+  let sessionId: string;
+
+  try {
+    const payload = verifyRefreshToken(refreshToken);
+    sessionId = payload.sessionId;
+  } catch (error) {
+    throw new AuthError("Invalid refresh token");
+  }
+
+  if (!sessionId) {
+    throw new AuthError("Missing session ID in refresh token");
+  }
+
+  const sessionKey = REDIS_KEYS.session(sessionId);
+  let sessionData: sessions | null = null;
+
+  try {
+    const cachedSession = await redis.get(sessionKey);
+    if (cachedSession) {
+      sessionData = JSON.parse(cachedSession);
+    }
+  } catch (error) {
+    console.warn("Failed to parse cached session data:", error);
+  }
+
+  if (!sessionData) {
+    try {
+      sessionData = await prisma.sessions.findUnique({
+        where: { id: sessionId },
+      });
+
+      if (sessionData) {
+        await redis.setex(
+          sessionKey,
+          7 * 24 * 60 * 60,
+          JSON.stringify(sessionData),
+        );
+      }
+    } catch (error) {
+      throw new AuthError("Failed to fetch session data");
+    }
+  }
+
+  if (!sessionData) {
+    throw new AuthError("Session not found");
+  }
+
+  // Determine if it's a USER or SELLER session
+  const isSellerSession = sessionData.seller_id !== null;
+  
+  if (isSellerSession) {
+    // Handle SELLER
+    const sellerKey = `seller:${sessionData.seller_id}`;
+    let sellerData: any = null;
+
+    try {
+      const cachedSeller = await redis.get(sellerKey);
+      if (cachedSeller) {
+        sellerData = JSON.parse(cachedSeller);
+      }
+    } catch (error) {
+      console.warn("Failed to parse cached seller data:", error);
+    }
+
+    if (!sellerData) {
+      sellerData = await prisma.sellers.findUnique({
+        where: { id: sessionData.seller_id! },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          registration_status: true,
+          // Add other necessary fields
+        },
+      });
+
+      if (sellerData) {
+        await redis.setex(
+          sellerKey,
+          1 * 60 * 60, // 1 hour
+          JSON.stringify(sellerData),
+        );
+      }
+    }
+
+    return {
+      accessToken: generateAccessToken({
+        id: sellerData?.id!,
+        role: "SELLER",
+        email: sellerData?.email!,
+        sessionId,
+        name: sellerData?.name!,
+        userType: 'SELLER',
+      }),
+      refreshToken: generateRefreshToken(sessionId),
+    };
+  } else {
+    // Handle USER (existing logic)
+    const userKey = REDIS_KEYS.user(sessionData.user_id!);
+    let userData: Partial<users> | null = null;
+
+    try {
+      const cachedUser = await redis.get(userKey);
+      if (cachedUser) {
+        userData = JSON.parse(cachedUser) as Partial<users>;
+      }
+    } catch (error) {
+      console.warn("Failed to parse cached user data:", error);
+    }
+
+    if (!userData) {
+      userData = await prisma.users.findUnique({
+        where: { id: sessionData.user_id! },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          name: true,
+        },
+      });
+
+      if (userData) {
+        await redis.setex(
+          userKey,
+          1 * 60 * 60,
+          JSON.stringify(userData),
+        );
+      }
+    }
+
+    return {
+      accessToken: generateAccessToken({
+        id: userData?.id!,
+        role: userData?.role || "USER",
+        email: userData?.email!,
+        sessionId,
+        name: userData?.name!,
+        userType: 'USER',
+      }),
+      refreshToken: generateRefreshToken(sessionId),
+    };
+  }
+};
+
 
 export const verifyAccessToken = (token: string): AccessTokenPayload => {
   try {
@@ -101,105 +256,21 @@ export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
   }
 };
 
-export const rotateTokens = async (
-  refreshToken: string,
-): Promise<TokenPair> => {
-  let sessionId: string;
 
+
+// Add this to auth.helper.ts or create a new helper file
+export const getUserTypeFromToken = (accessToken: string): 'USER' | 'SELLER' | null => {
   try {
-    const payload = verifyRefreshToken(refreshToken);
-    sessionId = payload.sessionId;
+    const decoded = jwt.decode(accessToken) as AccessTokenPayload;
+    if (decoded?.role === "SELLER") {
+      return 'SELLER';
+    } else if (decoded?.role) {
+      return 'USER';
+    }
+    return null;
   } catch (error) {
-    throw new AuthError("Invalid refresh token");
+    return null;
   }
-
-  if (!sessionId) {
-    throw new AuthError("Missing session ID in refresh token");
-  }
-
-  // Try to get session from Redis cache
-  const sessionKey = REDIS_KEYS.session(sessionId);
-  let sessionData: sessions | null = null;
-
-  try {
-    const cachedSession = await redis.get(sessionKey);
-    if (cachedSession) {
-      sessionData = JSON.parse(cachedSession);
-    }
-  } catch (error) {
-    console.warn("Failed to parse cached session data:", error);
-  }
-
-  // If not in cache, fetch from database
-  if (!sessionData) {
-    try {
-      sessionData = await prisma.sessions.findUnique({
-        where: { id: sessionId },
-      });
-
-      if (sessionData) {
-        // Cache the session for future use
-        await redis.setex(
-          sessionKey,
-          7 * 24 * 60 * 60, // 7 days in seconds
-          JSON.stringify(sessionData),
-        );
-      }
-    } catch (error) {
-      throw new AuthError("Failed to fetch session data");
-    }
-  }
-
-  if (!sessionData) {
-    throw new AuthError("Session not found");
-  }
-
-  // Get user data
-  const userKey = REDIS_KEYS.user(sessionData?.user_id!);
-  let userData: Partial<users> | null = null;
-
-  try {
-    const cachedUser = await redis.get(userKey);
-    if (cachedUser) {
-      userData = JSON.parse(cachedUser) as Partial<users>;
-    }
-  } catch (error) {
-    console.warn("Failed to parse cached user data:", error);
-  }
-
-  if (!userData) {
-    userData = await prisma.users.findUnique({
-      where: { id: sessionData.id },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        name: true,
-        // Add other necessary fields
-      },
-    });
-
-    if (userData) {
-      // Cache the user for future use (shorter TTL than session)
-      await redis.setex(
-        userKey,
-        1 * 60 * 60, // 1 hour in seconds
-        JSON.stringify(userData),
-      );
-    }
-  }
-
-  // Generate new tokens
-  return {
-    accessToken: generateAccessToken({
-      id: userData?.id!,
-      role: userData?.role || "USER",
-      email: userData?.email!,
-      sessionId,
-      name: userData?.name!,
-    }),
-    refreshToken: generateRefreshToken(sessionId),
-  };
 };
 
 export const generateSessionId = async (userId: string,type?:'USER' | 'SELLER'): Promise<string> => {

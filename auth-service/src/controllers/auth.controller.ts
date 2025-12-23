@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { loginSchema, registerSchema, sellerRegistrationSchema } from "../validator/auth.validator";
+import { loginSchema, registerSchema, sellerRegistrationSchema, setUpSellerSchema } from "../validator/auth.validator";
 import { AuthError, ValidationError } from "../middlewares/error-handler";
 import prisma from "../config/prisma";
 import {
@@ -11,6 +11,7 @@ import {
   persistUser,
   resetPasswordToken,
   sendOtp,
+  setSellerToRedis,
   trackOtpRequest,
   verifyOtp,
 } from "../utils/auth.helper";
@@ -23,7 +24,16 @@ import {
   setAuthCookies,
   verifyRefreshToken,
 } from "../utils/token.helper";
-import { sessions } from "../generated/prisma";
+import { SellerAccountCreationStatus, sellers, sessions } from "../generated/prisma";
+import { _env } from "../config";
+import redis from "../config/redis";
+import Razorpay from "razorpay";
+
+const razorpay = new Razorpay({
+  key_id: _env.RAZORPAY_KEY_ID,
+  key_secret: _env.RAZORPAY_KEY_SECRET,
+});
+
 
 class AuthController {
   async userRegistration(req: Request, res: Response, next: NextFunction) {
@@ -216,9 +226,7 @@ class AuthController {
       if (!newPassword || !token || !newPassword.trim() || !token.trim()) {
         return next(new ValidationError("Invalid request data"));
       }
-      console.log(token);
       const user = await getUserFromResetToken(token, next);
-      console.log(user);
       if (!user) {
         return next(new ValidationError("Invalid token"));
       }
@@ -339,37 +347,69 @@ class AuthController {
     if (!otp || !token || !otp.trim() || !token.trim()) {
       return next(new ValidationError("Invalid request data"));
     }
-    const user = await getUserFromToken(token, next);
-    const existSeller = await prisma.sellers.findUnique({
-      where: {
-        email: user?.email,
-      },
-    });
-
-    if (existSeller) {
-      return next(new ValidationError("Seller already exist"));
-    }
-
-    await verifyOtp(user?.email!, token, otp, next);
-    const hashedPassword = await bcrypt.hash(user?.password!, 10);
     try {
-      await prisma.sellers.create({
+      const user = await getUserFromToken(token, next);
+      if (!user || !user.email) {
+        return next(new ValidationError("Invalid token"));
+      }
+      const existSeller = await prisma.sellers.findUnique({
+        where: {
+          email: user?.email,
+        },
+      });
+
+      if (existSeller) {
+        return next(new ValidationError("Seller already exist"));
+      }
+
+      await verifyOtp(user?.email!, token, otp, next);
+      const hashedPassword = await bcrypt.hash(user?.password!, 10);
+
+      const seller = await prisma.sellers.create({
         data: {
           name: user?.name!,
           email: user?.email!,
           password: hashedPassword,
           country: user?.country!,
           phone_no: user?.phone_number!,
-          stripe_id: ""
+          stripe_id: "",
+          registration_status: SellerAccountCreationStatus.SETUP,
         },
       })
+
+
+
+      if (!seller || !seller.id) {
+        return next(new ValidationError("Server side error"));
+      }
+
+      // Store seller to redis
+      await setSellerToRedis(seller);
+
+      const sessionId = await generateSessionId(seller.id, 'SELLER');
+
+      const { accessToken, refreshToken } = await generateTokens({
+        sessionId,
+        id: seller.id,
+        email: seller.email,
+        name: seller.name,
+        role: "SELLER",
+        userType: "SELLER",
+      });
+
+      setAuthCookies(res, {
+        accessToken,
+        refreshToken,
+      });
+
+      return res.status(200).json({
+        message: "Seller verified successfully",
+        success: true,
+      });
     } catch (error) {
-      
+      console.log(error)
+      return next(error);
     }
-    return res.status(200).json({
-      message: "Seller verified successfully",
-      success: true,
-    });
   }
 
   async loginSeller(req: Request, res: Response, next: NextFunction) {
@@ -386,6 +426,7 @@ class AuthController {
       if (!seller) {
         return next(new AuthError("Seller not found"));
       }
+      await setSellerToRedis(seller);
       const isPasswordValid = await bcrypt.compare(
         validate.data.password,
         seller.password!,
@@ -394,14 +435,15 @@ class AuthController {
         return next(new AuthError("Invalid credentials"));
       }
 
-      const sessionId = await generateSessionId(seller.id);
+      const sessionId = await generateSessionId(seller.id, 'SELLER');
 
       const { accessToken, refreshToken } = await generateTokens({
         sessionId,
         id: seller.id,
         email: seller.email,
         name: seller.name,
-        role: "seller",
+        role: "SELLER",
+        userType: "SELLER",
       });
 
       setAuthCookies(res, {
@@ -412,13 +454,78 @@ class AuthController {
       return res.status(200).json({
         message: "Login successful",
         success: true,
+        data: {
+          status: seller.registration_status
+        }
       });
+    } catch (error) {
+      console.log(error)
+      return next(error);
+    }
+  }
+
+  async setupSeller(req: Request, res: Response, next: NextFunction) {
+    const seller = req.user?.id;
+    const validate = setUpSellerSchema.safeParse(req.body);
+    if (!validate.success) {
+      return next(new ValidationError(JSON.stringify(validate.error.issues[0].message)));
+    }
+
+    try {
+      const seller = await prisma.sellers.findUnique({
+        where: {
+          id: req.user?.id,
+        },
+      })
+
+      if (!seller) {
+        return next(new AuthError("Seller not found"));
+      }
+
+      if (seller.registration_status !== SellerAccountCreationStatus.SETUP) {
+        return next(new ValidationError("Seller already setup"));
+      }
+
+      //  SHOP CREATION
+      const shop = await prisma.shops.create({
+        data: {
+          name: validate.data.businessName,
+          bio: validate.data.businessBio,
+          category: validate.data.category,
+          opening_hours: validate.data.openingHours,
+          address: validate.data.address,
+          website: validate.data.website || "",
+          seller: {
+            connect: {
+              id: seller.id,
+            },
+          },
+        },
+      });
+
+      if (!shop) {
+        return next(new ValidationError("Shop creation failed"));
+      }
+      await prisma.sellers.update({
+        where: {
+          id: seller.id,
+        },
+        data: {
+          registration_status: SellerAccountCreationStatus.CONNECT,
+        },
+      })
+      return res.status(200).json({
+        message: "Seller account setup successfully",
+        success: true,
+      })
     } catch (error) {
       return next(error);
     }
   }
 
 
+  async connectRezorpay(req: Request, res: Response, next: NextFunction) {
+  }
 }
 
 export default AuthController;
