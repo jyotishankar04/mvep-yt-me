@@ -17,6 +17,7 @@ import {
 } from "../utils/auth.helper";
 import bcrypt from "bcryptjs";
 import {
+  clearAuthCookies,
   generateSessionId,
   generateTokens,
   RefreshTokenPayload,
@@ -28,6 +29,8 @@ import { SellerAccountCreationStatus, sellers, sessions } from "../generated/pri
 import { _env } from "../config";
 import redis from "../config/redis";
 import Razorpay from "razorpay";
+import { sendEvent } from "../events/producer";
+import { SELLER_EVENTS } from "../events/events.constants";
 
 const razorpay = new Razorpay({
   key_id: _env.RAZORPAY_KEY_ID,
@@ -342,6 +345,7 @@ class AuthController {
       },
     });
   }
+
   async verifySeller(req: Request, res: Response, next: NextFunction) {
     const { otp, token } = req.body;
     if (!otp || !token || !otp.trim() || !token.trim()) {
@@ -401,6 +405,17 @@ class AuthController {
         accessToken,
         refreshToken,
       });
+
+      await sendEvent({
+        eventType: SELLER_EVENTS.SELLER_CREATED,
+        data: {
+          id: seller.id,
+          role: "SELLER",
+          email: seller.email,
+          sessionId: sessionId,
+          name: seller.name,
+        },
+      })
 
       return res.status(200).json({
         message: "Seller verified successfully",
@@ -525,6 +540,30 @@ class AuthController {
 
 
   async connectRezorpay(req: Request, res: Response, next: NextFunction) {
+    return res.status(200).json({
+      message: "Rezorpay connected successfully",
+      success: true
+    })
+  }
+  async logoutSeller(req: Request, res: Response, next: NextFunction) {
+    try {
+      if(!req.user){
+        return next(new AuthError("Authentication required"));
+      }
+      await redis.del(`seller:${req.user?.id}`);
+      await prisma.sessions.delete({
+        where: {
+          id: req.user?.sessionId,
+        },
+      })
+      clearAuthCookies(res);
+      return res.status(200).json({
+        message: "Logout successful",
+        success: true,
+      });
+    } catch (error) {
+      return next(error);
+    }
   }
 }
 

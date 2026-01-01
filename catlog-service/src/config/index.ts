@@ -16,14 +16,10 @@ const envSchema = Object.freeze(z.object({
     JWT_ACCESS_SECRET: z.string(),
     JWT_REFRESH_SECRET: z.string(),
     RAZORPAY_KEY_ID: z.string(),
-    RAZORPAY_KEY_SECRET: z.string(),
-    KAFKA_BROKER: z.string(),
-    KAFKA_CLIENT_ID: z.string(),
-    KAFKA_TOPIC: z.string(),
-    KAFKA_GROUP_ID: z.string()
+    RAZORPAY_KEY_SECRET: z.string()
 })).safeParse(process.env);
 
-if(envSchema.success === false) {
+if (envSchema.success === false) {
     console.error("❌ Invalid environment variables:", envSchema.error.format());
     throw new ValidationError("Invalid environment variables");
 }

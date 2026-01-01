@@ -38,8 +38,10 @@ router.post("/seller/register", authController.sellerRegistration.bind(authContr
 router.post("/seller/verify", authController.verifySeller.bind(authController));
 router.post("/seller/login", authController.loginSeller.bind(authController));
 router.post("/seller/setup", authenticate, authController.setupSeller.bind(authController));
-router.post("/seller/connect-stripe", authenticate, authController.connectStripe.bind(authController));
+router.post("/seller/connect-stripe", authenticate, authController.connectRezorpay.bind(authController));
+router.post("/seller/logout", authenticate, authController.logoutSeller.bind(authController));
 
 
+// For service communication
 
 export default router;

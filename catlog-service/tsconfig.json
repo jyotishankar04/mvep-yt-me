@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "resolveJsonModule": true,
+    "typeRoots": ["./node_modules/@types", "./src/types"]
+   },
+   "include": [
+     "src/**/*"
+   ],
+   "ts-node": {
+     "esm": true,
+     "experimentalSpecifierResolution": "node"
+   }
+}

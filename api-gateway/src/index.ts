@@ -71,6 +71,13 @@ app.use('/api/auth', proxy('http://localhost:6001/api/auth', {
   }
 }));
 
+
+app.use("/api/products", proxy("http://localhost:6002/api/products", {
+  proxyReqPathResolver: (req: Request) => {
+    return `/api/products${req.url}`
+  }
+}));
+
 const port = process.env.PORT || 8000;
 
 const server = app.listen(port, () => {
