@@ -1,52 +1,121 @@
-export class AppError extends Error {
-    public readonly statusCode: number;
-    public readonly isOperational: boolean;
-    public readonly details: any;
+import { Request, Response, NextFunction } from 'express';
 
-    constructor(message: string,statusCode: number, isOperational = true, details?: any) {
+class HttpError extends Error {
+    public statusCode: number;
+    
+    constructor(message: string, statusCode: number, name: string) {
         super(message);
+        this.name = name;
         this.statusCode = statusCode;
-        this.isOperational = isOperational;
-        this.details = details;
-        Error.captureStackTrace(this);
     }
 }
 
-// Not found error
-export class NotFoundError extends AppError {
-    constructor(message:string =  "Resources not found") {
-        super(message, 404);
+class ValidationError extends HttpError {
+    constructor(message: string) {
+        super(message, 400, 'ValidationError');
     }
 }
 
-// Validation error 
-export class ValidationError extends AppError{
-    constructor(message = "Invalid request data",details?:any){
-        super(message,400,true, details);
-    }
-} 
-
-export class AuthError extends AppError{
-    constructor(message = "Unauthorizes"){
-        super(message,403)
+class NotFoundError extends HttpError {
+    constructor(message: string) {
+        super(message, 404, 'NotFoundError');
     }
 }
 
-export class ForbiddenError extends AppError{
-    constructor(message = "Forbidden access"){
-        super(message,403)
+class UnauthorizedError extends HttpError {
+    constructor(message: string) {
+        super(message, 401, 'UnauthorizedError');
     }
 }
 
-export class DatabaseError extends AppError{
-    constructor(message = "Database error",details?:any){
-        super(message,500,true,details)
+class ForbiddenError extends HttpError {
+    constructor(message: string) {
+        super(message, 403, 'ForbiddenError');
     }
 }
 
-export class RateLimitError extends AppError{
-    constructor(message = "Too many requests from this IP, please try again later.",details?:any){
-        super(message,429,true,details)
+class InternalServerError extends HttpError {
+    constructor(message: string) {
+        super(message, 500, 'InternalServerError');
     }
 }
 
+class ConflictError extends HttpError {
+    constructor(message: string) {
+        super(message, 409, 'ConflictError');
+    }
+}
+
+class BadRequestError extends HttpError {
+    constructor(message: string) {
+        super(message, 400, 'BadRequestError');
+    }
+}
+
+class UnprocessableEntityError extends HttpError {
+    constructor(message: string) {
+        super(message, 422, 'UnprocessableEntityError');
+    }
+}
+
+class TooManyRequestsError extends HttpError {
+    constructor(message: string) {
+        super(message, 429, 'TooManyRequestsError');
+    }
+}
+
+class ServiceUnavailableError extends HttpError {
+    constructor(message: string) {
+        super(message, 503, 'ServiceUnavailableError');
+    }
+}
+
+class GatewayTimeoutError extends HttpError {
+    constructor(message: string) {
+        super(message, 504, 'GatewayTimeoutError');
+    }
+}
+
+function errorHandler(
+    err: Error,
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    // Handle HttpError instances
+    if (err instanceof HttpError) {
+        return res.status(err.statusCode).json({
+            error: {
+                name: err.name,
+                message: err.message,
+                statusCode: err.statusCode
+            }
+        });
+    }
+
+    // Handle unexpected errors
+    console.error('Unexpected error:', err);
+    return res.status(500).json({
+        error: {
+            name: 'InternalServerError',
+            message: 'An unexpected error occurred',
+            statusCode: 500
+        }
+    });
+}
+
+export {
+    HttpError,
+    ValidationError,
+    NotFoundError,
+    UnauthorizedError,
+    ForbiddenError,
+    InternalServerError,
+    ConflictError,
+    BadRequestError,
+    UnprocessableEntityError,
+    TooManyRequestsError,
+    ServiceUnavailableError,
+    GatewayTimeoutError,
+    errorHandler
+};

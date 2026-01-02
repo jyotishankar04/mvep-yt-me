@@ -1,61 +1,143 @@
-import express from 'express';
-import cors from 'cors';
-import { errorMiddleware } from './middlewares/error-middleware';
-import authRoutes from './routes/auth.routes';
-import swaggerUi from 'swagger-ui-express';
-import cookieParser from 'cookie-parser';
+// src/server.ts
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
+import pinoHttp from "pino-http";
 
-const swaggerDocument = require('./swagger-output.json');
-const host = process.env.HOST ?? 'localhost';
-const port = process.env.PORT ? Number(process.env.PORT) : 6001;
-const app = express();
+import authRoutes from "./routes/auth.routes";
+import { _env } from "./config/env";
+import { errorHandler } from "./middlewares/error-handler";
+import { logger } from "./config/logger";
 
-app.use(cors(
-    {
-        origin: (origin, callback) => {
-            const allowedOrigins = [
-                "http://localhost:3000",
-                "http://localhost:5173"
-            ]
-            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-                callback(null, true);
-            } else {
-                callback(new Error("Not allowed by CORS"));
-            }
+export function createServer() {
+  const app = express();
+
+  /**
+   * --------------------
+   * Security middlewares
+   * --------------------
+   */
+
+  // Secure HTTP headers
+  app.use(helmet());
+
+  // Enable CORS
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        const allowedOrigins = [
+          "http://localhost:3000",
+          "http://localhost:5173",
+        ];
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+      allowedHeaders: ["Content-Type", "Authorization"],
+      credentials: true,
+    }),
+  );
+
+  /**
+   * --------------------
+   * Body & cookies
+   * --------------------
+   */
+
+  // Parse JSON body
+  app.use(express.json({ limit: "10kb" }));
+
+  // Parse cookies (for refresh tokens later)
+  app.use(cookieParser());
+
+  /**
+   * --------------------
+   * Logging (Pino)
+   * --------------------
+   */
+
+  app.use(
+    pinoHttp({
+      logger,
+
+      customLogLevel: (req, res, err) => {
+        if (res.statusCode >= 500) return "error";
+        if (res.statusCode >= 400) return "warn";
+        return "info";
+      },
+
+      serializers: {
+        req(req) {
+          return {
+            method: req.method,
+            url: req.url,
+          };
         },
-        allowedHeaders: ["Content-Type", "Authorization"],
-        credentials: true
-    }
-));
-app.use(cookieParser());
-app.use(express.json({
-    limit: '100mb'
-}));
-app.use(express.urlencoded({
-    limit: '100mb',
-    extended: true
-}));
+        res(res) {
+          return {
+            statusCode: res.statusCode,
+          };
+        },
+      },
 
+      customSuccessMessage(req, res) {
+        return `${req.method} ${req.url} → ${res.statusCode}`;
+      },
 
+      customErrorMessage(req, res, err) {
+        return `${req.method} ${req.url} → ${res.statusCode} | ${err.message}`;
+      },
+    }),
+  );
 
-app.use(
-    '/api-docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerDocument)
-)
-app.get("/docs-json", (req, res) => {
-    res.json(swaggerDocument);
-})
+  /**
+   * --------------------
+   * Rate limiting
+   * --------------------
+   */
 
-app.use("/api/auth", authRoutes);
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes in milliseconds
+    max: 1000, // max requests per IP
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
+  app.use("/api/auth", authLimiter);
 
+  /**
+   * --------------------
+   * Routes
+   * --------------------
+   */
 
-app.use(errorMiddleware)
+  app.use("/api/auth", authRoutes);
 
+  /**
+   * --------------------
+   * Health check
+   * --------------------
+   */
 
-const server = app.listen(port, () => {
-    console.log(`Auth Service is listening at http://${host}:${port}/api`);
-    console.log(`Docs at http://${host}:${port}/api-docs`);
-});
-server.on('error', console.error);
+  app.get("/health", (_, res) => {
+    res.status(200).json({
+      status: "ok",
+      service: "auth-service",
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  /**
+   * --------------------
+   * Global error handler
+   * --------------------
+   */
+
+  app.use(errorHandler);
+
+  return app;
+}

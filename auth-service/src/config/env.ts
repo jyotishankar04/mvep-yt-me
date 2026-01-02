@@ -1,5 +1,4 @@
 import z from "zod"
-import { ValidationError } from "../middlewares/error-handler";
 import { config } from "dotenv";
 config()
 const envSchema = Object.freeze(z.object({
@@ -25,7 +24,7 @@ const envSchema = Object.freeze(z.object({
 
 if(envSchema.success === false) {
     console.error("❌ Invalid environment variables:", envSchema.error.format());
-    throw new ValidationError("Invalid environment variables");
+    process.exit(1);
 }
 
 export const _env = envSchema && envSchema.data;

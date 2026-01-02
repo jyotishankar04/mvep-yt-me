@@ -14,96 +14,135 @@ datasource db {
 }
 
 
-enum SellerAccountCreationStatus {
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SellerStatus {
+  INIT
   SETUP
   CONNECT
-  COMPLETED
-  INIT
+  ACTIVE
+  SUSPENDED
 }
 
-model images {
-  id      String @id @default(ulid())
-  file_id String
-  url     String
-  user_id String @unique
-  shop_id String @unique
-  shop    shops  @relation(fields: [shop_id], references: [id])
-  user    users  @relation(fields: [user_id], references: [id])
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
 }
 
-model users {
-  id         String     @id @default(ulid())
-  name       String
-  email      String     @unique
-  password   String?
-  avatar     images?
-  following  String[]
-  sessions   sessions[]
-  role       String     @default("USER")
-  created_at DateTime   @default(now())
-  updated_at DateTime   @updatedAt
-
-  shopReviews shop_reviews[]
+enum DeviceType {
+  MOBILE
+  DESKTOP
+  TABLET
+  WEB
 }
 
-model sessions {
-  id         String   @id @default(ulid())
-  user_id    String?
-  user       users?    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  seller_id  String?
-  seller     sellers?  @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-}
-
-model shop_reviews {
-  id         String   @id @default(ulid())
-  rating     Float
-  comment    String?
-  user_id    String
-  user       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  shop_id    String
-  shop       shops    @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-}
-
-model shops {
-  id            String         @id @default(ulid())
-  name          String
-  bio           String?
-  category      String
-  avatar        images?
-  coverBanner   String?
-  address       String
-  opening_hours String?
-  website       String?
-  socialLinks   Json[]
-  rating        Float?         @default(0)
-  reviews       shop_reviews[]
-
-  seller_id  String   @unique
-  seller     sellers  @relation(fields: [seller_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-}
-
-model sellers {
-  id        String @id @default(ulid())
+model User {
+  id        String   @id @default(ulid())
   name      String
-  email     String @unique
-  phone_no  String
+  email     String   @unique
+  password  String?
+  role      UserRole @default(USER)
+  isVerified Boolean @default(false)
+
+  sessions  UserSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+
+model Seller {
+  id        String       @id @default(ulid())
+  name      String
+  email     String       @unique
   password  String
+  phoneNo   String
   country   String
-  stripe_id String
+  stripeId  String?
 
-  registration_status SellerAccountCreationStatus @default(INIT)
+  status    SellerStatus @default(INIT)
 
-  sessions sessions[]
+  sessions  SellerSession[]
 
-  shop_id String?
-  shop    shops[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+
+model UserSession {
+  id        String        @id @default(ulid())
+  userId    String
+  status    SessionStatus @default(ACTIVE)
+
+  ipAddress String?
+  userAgent String?
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceSessions DeviceSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+}
+
+
+model SellerSession {
+  id        String        @id @default(ulid())
+  sellerId  String
+  status    SessionStatus @default(ACTIVE)
+
+  ipAddress String?
+  userAgent String?
+
+  seller         Seller          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  deviceSessions DeviceSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId, status])
+}
+
+
+model RefreshToken {
+  id        String   @id @default(ulid())
+  sessionId String
+  tokenHash String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+
+model DeviceSession {
+  id String @id @default(ulid())
+
+  userSessionId   String?
+  sellerSessionId String?
+
+  deviceId   String
+  deviceType DeviceType
+  ipAddress  String
+  userAgent  String
+
+  isTrusted    Boolean  @default(false)
+  lastActiveAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userSession   UserSession?   @relation(fields: [userSessionId], references: [id], onDelete: Cascade)
+  sellerSession SellerSession? @relation(fields: [sellerSessionId], references: [id], onDelete: Cascade)
+
+  @@index([userSessionId])
+  @@index([sellerSessionId])
+  @@index([deviceId])
 }

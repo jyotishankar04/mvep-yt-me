@@ -1,47 +1,29 @@
+// src/modules/auth/auth.routes.ts
 import { Router } from "express";
-
 import AuthController from "../controllers/auth.controller";
-import { authenticate } from "../middlewares/authentication/auth.middleware";
+import prisma from "../config/prismaclient.config";
+import OtpService from "../services/otp.service";
+import RedisService from "../services/redis.service";
+import MailService from "../services/mail.service";
+import transporter from "../config/mail.config";
+import AuthService from "../services/auth.service";
 
 const router = Router();
-const authController = new AuthController();
-router.post("/register", authController.userRegistration.bind(authController));
-router.post("/verify", authController.verifyUser.bind(authController));
-router.post("/login", authController.loginUser.bind(authController));
-router.post(
-  "/forgot-password",
-  authController.forgotUserPassword.bind(authController),
-);
-router.post(
-  "/verify-forgot-password-otp",
-  authController.verifyForgotPasswordOtp.bind(authController),
-);
-router.post(
-  "/reset-password",
-  authController.resetUserPassword.bind(authController),
-);
-router.get(
-  "/check-session",
-  authenticate,
-  authController.checkSession.bind(authController),
-);
-router.get("/refresh-token", authController.refreshToken.bind(authController));
-router.post(
-  "/logout",
-  authenticate,
-  authController.logoutUser.bind(authController),
-);
 
+// instantiate controller (simple DI for now)
+const authService = new AuthService(prisma);
+const redisService = new RedisService();
+const otpService = new OtpService(redisService);
+const mailService = new MailService(transporter);
+const authController = new AuthController(authService, otpService, mailService);
 
-// seller routes
-router.post("/seller/register", authController.sellerRegistration.bind(authController));
-router.post("/seller/verify", authController.verifySeller.bind(authController));
-router.post("/seller/login", authController.loginSeller.bind(authController));
-router.post("/seller/setup", authenticate, authController.setupSeller.bind(authController));
-router.post("/seller/connect-stripe", authenticate, authController.connectRezorpay.bind(authController));
-router.post("/seller/logout", authenticate, authController.logoutSeller.bind(authController));
+/**
+ * --------------------
+ * Auth routes
+ * --------------------
+ */
 
-
-// For service communication
+// Register user (send OTP)
+router.post("/register", authController.registerUser.bind(authController));
 
 export default router;
