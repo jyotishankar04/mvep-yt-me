@@ -1,0 +1,83 @@
+import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
+import { TOKEN_CONFIG, TokenPurpose, TokenPayload } from "../types/token.types";
+
+export class TokenService {
+  /* -------------------- GENERATE -------------------- */
+
+  generateToken<T extends TokenPayload>(
+    payload: T,
+    purpose: TokenPurpose,
+  ): string {
+    const config = TOKEN_CONFIG[purpose];
+
+    return jwt.sign({ ...payload, purpose }, config.secret, {
+      expiresIn: config.expiresIn,
+    });
+  }
+
+  /* -------------------- VERIFY -------------------- */
+
+  verifyToken<T extends TokenPayload>(token: string, purpose: TokenPurpose): T {
+    const config = TOKEN_CONFIG[purpose];
+
+    const decoded = jwt.verify(token, config.secret) as T;
+
+    this.assertPurpose(decoded, purpose);
+    return decoded;
+  }
+
+  /* -------------------- DECODE (NO VERIFY) -------------------- */
+
+  decodeToken<T extends JwtPayload>(token: string): T | null {
+    return jwt.decode(token) as T | null;
+  }
+
+  /* -------------------- REFRESH ACCESS TOKEN -------------------- */
+
+  refreshAccessToken(refreshToken: string): string {
+    const payload = this.verifyToken<TokenPayload>(refreshToken, "refresh");
+
+    return this.generateToken(
+      {
+        sub: payload.sub,
+        purpose: "access",
+      },
+      "access",
+    );
+  }
+
+  /* -------------------- ROTATE REFRESH TOKEN -------------------- */
+
+  rotateRefreshToken(refreshToken: string): string {
+    const payload = this.verifyToken<TokenPayload>(refreshToken, "refresh");
+
+    // 🔥 here you would revoke old token in Redis using jti
+
+    return this.generateToken(
+      {
+        sub: payload.sub,
+        purpose: "refresh",
+      },
+      "refresh",
+    );
+  }
+
+  /* -------------------- SECURITY HELPERS -------------------- */
+
+  assertPurpose(payload: JwtPayload, expected: TokenPurpose) {
+    if (payload.purpose !== expected) {
+      throw new Error("Invalid token purpose");
+    }
+  }
+
+  getExpiry(token: string): Date | null {
+    const decoded = jwt.decode(token) as JwtPayload | null;
+    return decoded?.exp ? new Date(decoded.exp * 1000) : null;
+  }
+
+  isExpired(token: string): boolean {
+    const decoded = jwt.decode(token) as JwtPayload | null;
+    if (!decoded?.exp) return true;
+    return Date.now() >= decoded.exp * 1000;
+  }
+}

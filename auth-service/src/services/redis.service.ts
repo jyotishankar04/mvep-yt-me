@@ -20,6 +20,10 @@ class RedisService {
     return this.client.get(key);
   }
 
+  async mget(keys: string[]): Promise<(string | null)[]> {
+    return this.client.mget(...keys);
+  }
+
   async del(key: string) {
     await this.client.del(key);
   }

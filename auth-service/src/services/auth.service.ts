@@ -42,6 +42,37 @@ class AuthService {
       return;
     }
   }
+  async verifyUser(id: string) {
+    try {
+      const user = await this.prisma.user.update({
+        where: { id },
+        data: { isVerified: true },
+      });
+      if (!user) {
+        throw new InternalServerError("Error in user verification");
+        return;
+      }
+      return user;
+    } catch (error) {
+      new InternalServerError("Error in user verification");
+      return;
+    }
+  }
+  async deleteUser(id: string) {
+    try {
+      const user = await this.prisma.user.delete({
+        where: { id },
+      });
+      if (!user) {
+        throw new InternalServerError("Error in user deletion");
+        return;
+      }
+      return user;
+    } catch (error) {
+      new InternalServerError("Error in user deletion");
+      return;
+    }
+  }
 }
 
 export default AuthService;

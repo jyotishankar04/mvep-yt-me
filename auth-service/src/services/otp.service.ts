@@ -32,6 +32,8 @@ class OtpService {
         return new ValidationError("Invalid OTP");
       }
       await this.redisService.del(`otp:${email}`);
+      await this.redisService.del(`otp_cooldown:${email}`);
+      await this.redisService.del(`otp_cooldown:${email}`);
       return true;
     } catch (error) {
       return new InternalServerError("Error in OTP verification");
