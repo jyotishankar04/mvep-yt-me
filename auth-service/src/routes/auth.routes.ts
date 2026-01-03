@@ -8,6 +8,7 @@ import MailService from "../services/mail.service";
 import transporter from "../config/mail.config";
 import AuthService from "../services/auth.service";
 import { TokenService } from "../services/token.service";
+import { SessionService } from "../services/session.service";
 
 const router = Router();
 
@@ -17,12 +18,14 @@ const redisService = new RedisService();
 const otpService = new OtpService(redisService);
 const mailService = new MailService(transporter);
 const tokenService = new TokenService();
+const sessionService = new SessionService(prisma);
 
 const authController = new AuthController(
   authService,
   otpService,
   mailService,
   tokenService,
+  sessionService,
 );
 
 /**
@@ -36,5 +39,14 @@ router.post("/register", authController.registerUser.bind(authController));
 
 // Verify OTP
 router.post("/verify", authController.verifyOtp.bind(authController));
+
+// Resend OTP
+router.post("/resend", authController.resendOtp.bind(authController));
+
+// Login user (generate token)
+router.post("/login", authController.loginUser.bind(authController));
+
+// Logout user (invalidate token)
+router.post("/logout", authController.logoutUser.bind(authController));
 
 export default router;

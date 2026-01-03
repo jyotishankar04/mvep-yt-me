@@ -10,9 +10,16 @@ export class TokenService {
   ): string {
     const config = TOKEN_CONFIG[purpose];
 
-    return jwt.sign({ ...payload, purpose }, config.secret, {
-      expiresIn: config.expiresIn,
-    });
+    return jwt.sign(
+      {
+        ...payload,
+        purpose,
+      },
+      config.secret,
+      {
+        expiresIn: config.expiresIn,
+      },
+    );
   }
 
   /* -------------------- VERIFY -------------------- */
@@ -20,9 +27,10 @@ export class TokenService {
   verifyToken<T extends TokenPayload>(token: string, purpose: TokenPurpose): T {
     const config = TOKEN_CONFIG[purpose];
 
-    const decoded = jwt.verify(token, config.secret) as T;
+    const decoded = jwt.verify(token, config.secret) as JwtPayload & T;
 
     this.assertPurpose(decoded, purpose);
+
     return decoded;
   }
 
@@ -32,40 +40,13 @@ export class TokenService {
     return jwt.decode(token) as T | null;
   }
 
-  /* -------------------- REFRESH ACCESS TOKEN -------------------- */
-
-  refreshAccessToken(refreshToken: string): string {
-    const payload = this.verifyToken<TokenPayload>(refreshToken, "refresh");
-
-    return this.generateToken(
-      {
-        sub: payload.sub,
-        purpose: "access",
-      },
-      "access",
-    );
-  }
-
-  /* -------------------- ROTATE REFRESH TOKEN -------------------- */
-
-  rotateRefreshToken(refreshToken: string): string {
-    const payload = this.verifyToken<TokenPayload>(refreshToken, "refresh");
-
-    // 🔥 here you would revoke old token in Redis using jti
-
-    return this.generateToken(
-      {
-        sub: payload.sub,
-        purpose: "refresh",
-      },
-      "refresh",
-    );
-  }
-
   /* -------------------- SECURITY HELPERS -------------------- */
 
-  assertPurpose(payload: JwtPayload, expected: TokenPurpose) {
-    if (payload.purpose !== expected) {
+  private assertPurpose(
+    payload: JwtPayload & { purpose?: TokenPurpose },
+    expected: TokenPurpose,
+  ) {
+    if (!payload.purpose || payload.purpose !== expected) {
       throw new Error("Invalid token purpose");
     }
   }

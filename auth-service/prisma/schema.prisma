@@ -13,7 +13,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 enum UserRole {
   USER
   ADMIN
@@ -41,43 +40,40 @@ enum DeviceType {
 }
 
 model User {
-  id        String   @id @default(ulid())
-  name      String
-  email     String   @unique
-  password  String?
-  role      UserRole @default(USER)
-  isVerified Boolean @default(false)
+  id         String   @id @default(ulid())
+  name       String
+  email      String   @unique
+  password   String?
+  role       UserRole @default(USER)
+  isVerified Boolean  @default(false)
 
-  sessions  UserSession[]
+  sessions UserSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
-
 
 model Seller {
-  id        String       @id @default(ulid())
-  name      String
-  email     String       @unique
-  password  String
-  phoneNo   String
-  country   String
-  stripeId  String?
+  id       String  @id @default(ulid())
+  name     String
+  email    String  @unique
+  password String
+  phoneNo  String
+  country  String
+  stripeId String?
 
-  status    SellerStatus @default(INIT)
+  status SellerStatus @default(INIT)
 
-  sessions  SellerSession[]
+  sessions SellerSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-
 model UserSession {
-  id        String        @id @default(ulid())
-  userId    String
-  status    SessionStatus @default(ACTIVE)
+  id     String        @id @default(ulid())
+  userId String
+  status SessionStatus @default(ACTIVE)
 
   ipAddress String?
   userAgent String?
@@ -91,11 +87,10 @@ model UserSession {
   @@index([userId, status])
 }
 
-
 model SellerSession {
-  id        String        @id @default(ulid())
-  sellerId  String
-  status    SessionStatus @default(ACTIVE)
+  id       String        @id @default(ulid())
+  sellerId String
+  status   SessionStatus @default(ACTIVE)
 
   ipAddress String?
   userAgent String?
@@ -109,18 +104,17 @@ model SellerSession {
   @@index([sellerId, status])
 }
 
-
 model RefreshToken {
   id        String   @id @default(ulid())
+  tokenId   String   @unique // 🔧 ADDED
   sessionId String
-  tokenHash String   @unique
+  tokenHash String
   expiresAt DateTime
 
   createdAt DateTime @default(now())
 
   @@index([sessionId])
 }
-
 
 model DeviceSession {
   id String @id @default(ulid())
