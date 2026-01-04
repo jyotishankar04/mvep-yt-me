@@ -5,12 +5,12 @@ import { ValidationError } from "../middlewares/error-handler";
 import OtpService from "../services/otp.service";
 import MailService from "../services/mail.service";
 import { EMAIL_TYPE, getTemplate } from "../utils/email.html";
-import { DeviceType, User } from "../generated/prisma";
+import { DeviceType, SessionStatus, User } from "../generated/prisma";
 import { TOKEN_PURPOSE, TokenPayload } from "../types/token.types";
 import { TokenService } from "../services/token.service";
 import { cookieTypes, setCookie } from "../utils/cookie";
 import { comparePassword, hashPassword } from "../utils/password";
-import { SessionService } from "../services/session.service";
+import { SessionService } from "../services/user.session.service";
 import { detectDeviceType, generateDeviceId } from "../utils/device";
 
 class AuthController {
@@ -243,6 +243,7 @@ class AuthController {
       return res.status(200).json({
         success: true,
         accessToken,
+        refreshToken,
       });
     } catch (error) {
       next(error);
@@ -271,6 +272,65 @@ class AuthController {
       return res.status(200).json({
         success: true,
         message: "User logged out successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  async refreshUserToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+
+      if (!refreshToken) {
+        return next(new ValidationError("No refresh token provided"));
+      }
+
+      const session =
+        await this.sessionService.getSessionByRefreshToken(refreshToken);
+
+      if (!session || session.status === SessionStatus.REVOKED) {
+        return next(new ValidationError("Invalid or expired refresh token"));
+      }
+
+      const user = await this.authService.getUserById(session.userId);
+      if (!user) {
+        return next(new ValidationError("User not found"));
+      }
+
+      // 🔹 Rotate refresh token
+      const { refreshToken: newRefreshToken, sessionId } =
+        await this.sessionService.rotateRefreshToken(refreshToken);
+
+      // 🔹 Generate new access token
+      const accessToken = this.tokenService.generateToken(
+        {
+          sub: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name,
+          isVerified: user.isVerified,
+          sessionId: sessionId,
+          deviceId: generateDeviceId({
+            userAgent: req.headers["user-agent"],
+            ipAddress: req.ip,
+          }),
+        },
+        TOKEN_PURPOSE.ACCESS,
+      );
+
+      // 🔹 Set refresh token cookie
+      res.cookie("refreshToken", newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/", // ✅ IMPORTANT
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return res.status(200).json({
+        success: true,
+        accessToken,
+        refreshToken: newRefreshToken,
       });
     } catch (error) {
       next(error);

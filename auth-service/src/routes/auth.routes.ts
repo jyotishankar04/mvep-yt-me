@@ -8,7 +8,7 @@ import MailService from "../services/mail.service";
 import transporter from "../config/mail.config";
 import AuthService from "../services/auth.service";
 import { TokenService } from "../services/token.service";
-import { SessionService } from "../services/session.service";
+import { SessionService } from "../services/user.session.service";
 
 const router = Router();
 
@@ -48,5 +48,8 @@ router.post("/login", authController.loginUser.bind(authController));
 
 // Logout user (invalidate token)
 router.post("/logout", authController.logoutUser.bind(authController));
+
+// Refresh token
+router.post("/refresh", authController.refreshUserToken.bind(authController));
 
 export default router;

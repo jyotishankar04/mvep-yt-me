@@ -1,6 +1,7 @@
 import { DeviceType, PrismaClient, SessionStatus } from "../generated/prisma";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
+import { crossOriginResourcePolicy } from "helmet";
 
 const REFRESH_TOKEN_DAYS = 7;
 
@@ -119,6 +120,29 @@ export class SessionService {
 
     // 🔧 CHANGED: raw token now includes tokenId
     return `${tokenId}.${secret}`;
+  }
+
+  async getSessionByRefreshToken(refreshToken: string) {
+    const [tokenId, secret] = refreshToken.split(".");
+    if (!tokenId || !secret) {
+      throw new Error("Invalid refresh token format");
+    }
+
+    const token = await this.prisma.refreshToken.findUnique({
+      where: { tokenId },
+    });
+
+    if (
+      !token ||
+      token.expiresAt < new Date() ||
+      !(await bcrypt.compare(secret, token.tokenHash))
+    ) {
+      throw new Error("Invalid refresh token");
+    }
+
+    return await this.prisma.userSession.findUnique({
+      where: { id: token.sessionId },
+    });
   }
 
   async rotateRefreshToken(oldRawToken: string) {
