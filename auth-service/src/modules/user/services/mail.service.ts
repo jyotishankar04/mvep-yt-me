@@ -1,7 +1,7 @@
 import { Transporter } from "nodemailer";
-import { InternalServerError } from "../middlewares/error-handler";
+import { InternalServerError } from "../../../middlewares/error-handler";
 
-import { _env } from "../config/env";
+import { _env } from "../../../config/env";
 
 class MailService {
   constructor(private readonly transporter: Transporter) {}

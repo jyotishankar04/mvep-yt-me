@@ -1,11 +1,11 @@
 // src/modules/auth/auth.routes.ts
 import { Router } from "express";
 import AuthController from "../controllers/auth.controller";
-import prisma from "../config/prismaclient.config";
+import prisma from "../../../config/prismaclient.config";
 import OtpService from "../services/otp.service";
 import RedisService from "../services/redis.service";
 import MailService from "../services/mail.service";
-import transporter from "../config/mail.config";
+import transporter from "../../../config/mail.config";
 import AuthService from "../services/auth.service";
 import { TokenService } from "../services/token.service";
 import { SessionService } from "../services/user.session.service";

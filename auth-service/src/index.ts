@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
 
-import authRoutes from "./routes/auth.routes";
+import authRoutes from "./modules/user/routes/auth.routes";
 import { _env } from "./config/env";
 import { errorHandler } from "./middlewares/error-handler";
 import { logger } from "./config/logger";

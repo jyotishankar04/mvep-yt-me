@@ -1,7 +1,12 @@
-import { DeviceType, PrismaClient, SessionStatus } from "../generated/prisma";
+import {
+  DeviceType,
+  PrismaClient,
+  SessionStatus,
+} from "../../../generated/prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { crossOriginResourcePolicy } from "helmet";
+import { TokenExpiredError } from "jsonwebtoken";
 
 const REFRESH_TOKEN_DAYS = 7;
 
@@ -123,14 +128,29 @@ export class SessionService {
   }
 
   async getSessionByRefreshToken(refreshToken: string) {
+    console.log("Raw refresh token:", refreshToken);
     const [tokenId, secret] = refreshToken.split(".");
+    console.log("TokenId:", tokenId, "Secret length:", secret?.length);
+
     if (!tokenId || !secret) {
+      console.log("Missing tokenId or secret");
       throw new Error("Invalid refresh token format");
     }
 
     const token = await this.prisma.refreshToken.findUnique({
       where: { tokenId },
     });
+
+    console.log("Found token in DB:", !!token);
+    if (token) {
+      console.log("Token expiresAt:", token.expiresAt);
+      console.log("Current time:", new Date());
+      console.log("Is expired?", token.expiresAt < new Date());
+
+      // Test the bcrypt compare
+      const isValid = await bcrypt.compare(secret, token.tokenHash);
+      console.log("Bcrypt compare result:", isValid);
+    }
 
     if (
       !token ||
@@ -140,11 +160,15 @@ export class SessionService {
       throw new Error("Invalid refresh token");
     }
 
-    return await this.prisma.userSession.findUnique({
+    const session = await this.prisma.userSession.findUnique({
       where: { id: token.sessionId },
     });
-  }
+    if (!session) {
+      throw new Error("Invalid session");
+    }
 
+    return session;
+  }
   async rotateRefreshToken(oldRawToken: string) {
     // 🔧 CHANGED: split tokenId + secret
     const [tokenId, secret] = oldRawToken.split(".");

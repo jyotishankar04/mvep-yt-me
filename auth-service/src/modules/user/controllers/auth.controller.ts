@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction, CookieOptions } from "express";
 import AuthService from "../services/auth.service";
 import { userRegisterSchema } from "../validator";
-import { ValidationError } from "../middlewares/error-handler";
+import { ValidationError } from "../../../middlewares/error-handler";
 import OtpService from "../services/otp.service";
+import { SessionStatus, User } from "../../../generated/prisma/client";
 import MailService from "../services/mail.service";
 import { EMAIL_TYPE, getTemplate } from "../utils/email.html";
-import { DeviceType, SessionStatus, User } from "../generated/prisma";
 import { TOKEN_PURPOSE, TokenPayload } from "../types/token.types";
 import { TokenService } from "../services/token.service";
 import { cookieTypes, setCookie } from "../utils/cookie";
@@ -235,7 +235,7 @@ class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        path: "/api/auth/refresh",
+        path: "/",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
@@ -285,6 +285,7 @@ class AuthController {
         return next(new ValidationError("No refresh token provided"));
       }
 
+      // Just validate, don't rotate yet
       const session =
         await this.sessionService.getSessionByRefreshToken(refreshToken);
 
@@ -297,11 +298,7 @@ class AuthController {
         return next(new ValidationError("User not found"));
       }
 
-      // 🔹 Rotate refresh token
-      const { refreshToken: newRefreshToken, sessionId } =
-        await this.sessionService.rotateRefreshToken(refreshToken);
-
-      // 🔹 Generate new access token
+      // Generate new access token (this is the main purpose)
       const accessToken = this.tokenService.generateToken(
         {
           sub: user.id,
@@ -309,28 +306,15 @@ class AuthController {
           role: user.role,
           name: user.name,
           isVerified: user.isVerified,
-          sessionId: sessionId,
-          deviceId: generateDeviceId({
-            userAgent: req.headers["user-agent"],
-            ipAddress: req.ip,
-          }),
+          sessionId: session.id,
         },
         TOKEN_PURPOSE.ACCESS,
       );
 
-      // 🔹 Set refresh token cookie
-      res.cookie("refreshToken", newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/", // ✅ IMPORTANT
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
       return res.status(200).json({
         success: true,
         accessToken,
-        refreshToken: newRefreshToken,
+        refreshToken,
       });
     } catch (error) {
       next(error);

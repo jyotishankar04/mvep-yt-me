@@ -1,8 +1,7 @@
-import { PrismaClient } from "../generated/prisma/client";
 import {
   InternalServerError,
   ValidationError,
-} from "../middlewares/error-handler";
+} from "../../../middlewares/error-handler";
 import RedisService from "./redis.service";
 
 // Should implement otp_spam_lock, otp_cooldown,otp_lock

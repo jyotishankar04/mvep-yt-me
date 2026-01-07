@@ -1,5 +1,5 @@
-import { PrismaClient, User } from "../generated/prisma/client";
-import { InternalServerError } from "../middlewares/error-handler";
+import { PrismaClient, User } from "../../../generated/prisma/client";
+import { InternalServerError } from "../../../middlewares/error-handler";
 import { UserRegisterSchema } from "../validator";
 
 class AuthService {

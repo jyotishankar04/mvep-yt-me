@@ -1,5 +1,5 @@
 // src/utils/device.ts
-import { DeviceType } from "../generated/prisma";
+import { DeviceType } from "../../../generated/prisma";
 import crypto from "crypto";
 
 export function generateDeviceId(input: {

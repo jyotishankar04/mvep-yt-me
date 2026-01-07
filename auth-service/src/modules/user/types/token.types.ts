@@ -1,4 +1,4 @@
-import { _env } from "../config/env";
+import { _env } from "../../../config/env";
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
 import type { StringValue } from "ms";
 
