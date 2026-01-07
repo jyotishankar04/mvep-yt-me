@@ -52,4 +52,7 @@ router.post("/logout", authController.logoutUser.bind(authController));
 // Refresh token
 router.post("/refresh", authController.refreshUserToken.bind(authController));
 
+// for got password
+router.post("/forgot", authController.forgotPassword.bind(authController));
+
 export default router;

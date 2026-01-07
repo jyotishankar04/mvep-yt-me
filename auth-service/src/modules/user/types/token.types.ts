@@ -7,7 +7,7 @@ export const TOKEN_PURPOSE = {
   REFRESH: "refresh",
   RESET_PASSWORD: "reset_password",
   EMAIL_VERIFICATION: "email_verification",
-  PASSWORD_CHANGE: "password_change",
+  FORGOT_PASSWORD: "forgot_password",
   REGISTER: "register",
 } as const;
 
@@ -35,7 +35,7 @@ export const TOKEN_CONFIG: Record<
     secret: _env.JWT_ACCESS_SECRET,
     expiresIn: "15m",
   },
-  password_change: {
+  forgot_password: {
     secret: _env.JWT_ACCESS_SECRET,
     expiresIn: "15m",
   },

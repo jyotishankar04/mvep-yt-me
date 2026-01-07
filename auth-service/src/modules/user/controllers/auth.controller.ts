@@ -5,7 +5,11 @@ import { ValidationError } from "../../../middlewares/error-handler";
 import OtpService from "../services/otp.service";
 import { SessionStatus, User } from "../../../generated/prisma/client";
 import MailService from "../services/mail.service";
-import { EMAIL_TYPE, getTemplate } from "../utils/email.html";
+import {
+  EMAIL_TYPE,
+  forgotPasswordEmailTemplate,
+  registerEmailTemplate,
+} from "../utils/email.html";
 import { TOKEN_PURPOSE, TokenPayload } from "../types/token.types";
 import { TokenService } from "../services/token.service";
 import { cookieTypes, setCookie } from "../utils/cookie";
@@ -52,8 +56,7 @@ class AuthController {
       }
 
       const otp = await this.otpService.generateOtp(user.email);
-      const mailHtml = getTemplate({
-        type: EMAIL_TYPE.REGISTER,
+      const mailHtml = registerEmailTemplate({
         name: user.name,
         otp: String(otp),
       });
@@ -149,10 +152,9 @@ class AuthController {
 
       const otp = await this.otpService.generateOtp(user.email);
 
-      const html = getTemplate({
+      const html = registerEmailTemplate({
         name: user.name,
         otp: String(otp),
-        type: TOKEN_PURPOSE.REGISTER,
       });
       await this.mailService.sendEmail(user.email, "OTP Verification", html);
       const generatedToken = this.tokenService.generateToken(
@@ -315,6 +317,42 @@ class AuthController {
         success: true,
         accessToken,
         refreshToken,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+
+      const user = await this.authService.getUserByEmail(email);
+      if (!user) {
+        return next(new ValidationError("User not found"));
+      }
+
+      const token = this.tokenService.generateToken(
+        {
+          sub: user.id,
+          email: user.email,
+          role: user.role,
+          name: user.name,
+          isVerified: user.isVerified,
+          sessionId: user.id,
+        },
+        TOKEN_PURPOSE.FORGOT_PASSWORD,
+      );
+
+      const html = forgotPasswordEmailTemplate({
+        name: user.name,
+        token,
+      });
+
+      await this.mailService.sendEmail(user.email, "Password Reset", html);
+
+      return res.status(200).json({
+        success: true,
+        message: "Password reset email sent",
       });
     } catch (error) {
       next(error);

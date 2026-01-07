@@ -8,24 +8,25 @@ export const EMAIL_TYPE = {
 export type EmailType = (typeof EMAIL_TYPE)[keyof typeof EMAIL_TYPE];
 
 type RegisterEmailPayload = {
-  type: "register";
   name: string;
   otp: string;
 };
 
 type VerifyEmailPayload = {
-  type: "verify";
   name: string;
 };
 
 type ResetPasswordEmailPayload = {
-  type: "reset";
   name: string;
 };
 
 type WelcomeEmailPayload = {
-  type: "welcome";
   name: string;
+};
+
+type ForgotPasswordEmailPayload = {
+  name: string;
+  token: string;
 };
 
 export type EmailPayload =
@@ -71,23 +72,24 @@ const welcomeEmailTemplate = ({ name }: WelcomeEmailPayload) => `
     </div>
   `;
 
-export const getTemplate = (payload: EmailPayload): string => {
-  switch (payload.type) {
-    case "register":
-      return registerEmailTemplate(payload);
+const forgotPasswordEmailTemplate = ({
+  name,
+  token,
+}: ForgotPasswordEmailPayload) => `
+    <div>
+      <h1>Password Reset</h1>
+      <p>Hi ${name},</p>
+      <p>We received a request to reset your password.</p>
+      <p>Please click the following link to reset your password:</p>
+      <p><a href="http://localhost:8000/auth/api/auth/reset-password/${token}">Reset Password</a></p>
+      <p>The Team</p>
+    </div>
+  `;
 
-    case "verify":
-      return verifyEmailTemplate(payload);
-
-    case "reset":
-      return resetPasswordEmailTemplate(payload);
-
-    case "welcome":
-      return welcomeEmailTemplate(payload);
-
-    default:
-      // Exhaustive check (future-proof)
-      const _exhaustive: never = payload;
-      return _exhaustive;
-  }
+export {
+  registerEmailTemplate,
+  verifyEmailTemplate,
+  resetPasswordEmailTemplate,
+  welcomeEmailTemplate,
+  forgotPasswordEmailTemplate,
 };
