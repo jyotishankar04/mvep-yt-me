@@ -26,7 +26,7 @@ type WelcomeEmailPayload = {
 
 type ForgotPasswordEmailPayload = {
   name: string;
-  token: string;
+  otp: string;
 };
 
 export type EmailPayload =
@@ -74,14 +74,14 @@ const welcomeEmailTemplate = ({ name }: WelcomeEmailPayload) => `
 
 const forgotPasswordEmailTemplate = ({
   name,
-  token,
+  otp,
 }: ForgotPasswordEmailPayload) => `
     <div>
       <h1>Password Reset</h1>
       <p>Hi ${name},</p>
       <p>We received a request to reset your password.</p>
-      <p>Please click the following link to reset your password:</p>
-      <p><a href="http://localhost:8000/auth/api/auth/reset-password/${token}">Reset Password</a></p>
+      <p>Please use this OTP to reset your password:</p>
+      <p><b>${otp}</b></p>
       <p>The Team</p>
     </div>
   `;

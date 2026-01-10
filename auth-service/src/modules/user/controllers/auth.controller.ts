@@ -322,6 +322,7 @@ class AuthController {
       next(error);
     }
   }
+  // OTP Based Forgot Password
   async forgotPassword(req: Request, res: Response, next: NextFunction) {
     try {
       const { email } = req.body;
@@ -343,9 +344,11 @@ class AuthController {
         TOKEN_PURPOSE.FORGOT_PASSWORD,
       );
 
+      const otp = await this.otpService.generateOtp(user.id);
+
       const html = forgotPasswordEmailTemplate({
         name: user.name,
-        token,
+        otp: String(otp),
       });
 
       await this.mailService.sendEmail(user.email, "Password Reset", html);
