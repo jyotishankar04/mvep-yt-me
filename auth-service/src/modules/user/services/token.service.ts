@@ -9,7 +9,6 @@ export class TokenService {
     purpose: TokenPurpose,
   ): string {
     const config = TOKEN_CONFIG[purpose];
-
     return jwt.sign(
       {
         ...payload,
@@ -26,9 +25,7 @@ export class TokenService {
 
   verifyToken<T extends TokenPayload>(token: string, purpose: TokenPurpose): T {
     const config = TOKEN_CONFIG[purpose];
-
     const decoded = jwt.verify(token, config.secret) as JwtPayload & T;
-
     this.assertPurpose(decoded, purpose);
 
     return decoded;

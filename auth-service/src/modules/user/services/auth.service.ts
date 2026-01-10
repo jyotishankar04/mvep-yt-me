@@ -1,5 +1,6 @@
 import { PrismaClient, User } from "../../../generated/prisma/client";
 import { InternalServerError } from "../../../middlewares/error-handler";
+import { hashPassword } from "../utils/password";
 import { UserRegisterSchema } from "../validator";
 
 class AuthService {
@@ -12,7 +13,6 @@ class AuthService {
       });
       if (!user) {
         throw new InternalServerError("Error in user creation");
-        return;
       }
       return user;
     } catch (error) {
@@ -50,7 +50,6 @@ class AuthService {
       });
       if (!user) {
         throw new InternalServerError("Error in user verification");
-        return;
       }
       return user;
     } catch (error) {
@@ -65,11 +64,25 @@ class AuthService {
       });
       if (!user) {
         throw new InternalServerError("Error in user deletion");
-        return;
       }
       return user;
     } catch (error) {
       new InternalServerError("Error in user deletion");
+      return;
+    }
+  }
+  async resetPassword(id: string, newPassword: string) {
+    try {
+      const user = await this.prisma.user.update({
+        where: { id },
+        data: { password: await hashPassword(newPassword) },
+      });
+      if (!user) {
+        throw new InternalServerError("Error in password reset");
+      }
+      return user;
+    } catch (error) {
+      new InternalServerError("Error in password reset");
       return;
     }
   }

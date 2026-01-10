@@ -9,6 +9,7 @@ import transporter from "../../../config/mail.config";
 import AuthService from "../services/auth.service";
 import { TokenService } from "../services/token.service";
 import { SessionService } from "../services/user.session.service";
+import { authMiddleware } from "../../../middlewares/auth.middleware";
 
 const router = Router();
 
@@ -53,6 +54,20 @@ router.post("/logout", authController.logoutUser.bind(authController));
 router.post("/refresh", authController.refreshUserToken.bind(authController));
 
 // for got password
-router.post("/forgot", authController.forgotPassword.bind(authController));
+router.post(
+  "/forgot-password",
+  authController.forgotPassword.bind(authController),
+);
+// for verify forgot password
+router.post(
+  "/verify-forgot-password",
+  authController.forgotPasswordVerify.bind(authController),
+);
+
+router.get(
+  "/validate-session",
+  authMiddleware(tokenService, sessionService),
+  authController.validateSession.bind(authController),
+);
 
 export default router;

@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction, CookieOptions } from "express";
 import AuthService from "../services/auth.service";
 import { userRegisterSchema } from "../validator";
-import { ValidationError } from "../../../middlewares/error-handler";
+import {
+  UnauthorizedError,
+  ValidationError,
+} from "../../../middlewares/error-handler";
 import OtpService from "../services/otp.service";
 import { SessionStatus, User } from "../../../generated/prisma/client";
 import MailService from "../services/mail.service";
@@ -248,7 +251,7 @@ class AuthController {
         refreshToken,
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
   async logoutUser(req: Request, res: Response, next: NextFunction) {
@@ -276,7 +279,7 @@ class AuthController {
         message: "User logged out successfully",
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
   async refreshUserToken(req: Request, res: Response, next: NextFunction) {
@@ -319,7 +322,7 @@ class AuthController {
         refreshToken,
       });
     } catch (error) {
-      next(error);
+      return next(error);
     }
   }
   // OTP Based Forgot Password
@@ -332,33 +335,190 @@ class AuthController {
         return next(new ValidationError("User not found"));
       }
 
-      const token = this.tokenService.generateToken(
-        {
-          sub: user.id,
-          email: user.email,
-          role: user.role,
-          name: user.name,
-          isVerified: user.isVerified,
-          sessionId: user.id,
-        },
-        TOKEN_PURPOSE.FORGOT_PASSWORD,
-      );
-
-      const otp = await this.otpService.generateOtp(user.id);
-
-      const html = forgotPasswordEmailTemplate({
+      const otp = await this.otpService.generateOtp(user.email);
+      const mailHtml = forgotPasswordEmailTemplate({
         name: user.name,
         otp: String(otp),
       });
 
-      await this.mailService.sendEmail(user.email, "Password Reset", html);
+      await this.mailService.sendEmail(
+        user.email,
+        "OTP verification",
+        mailHtml,
+      );
+
+      const tokenPayload: TokenPayload = {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        verified: user.isVerified,
+      };
+
+      const token = this.tokenService.generateToken(
+        tokenPayload,
+        TOKEN_PURPOSE.FORGOT_PASSWORD,
+      );
+
+      const cookieOptions: CookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      };
+
+      setCookie(res, cookieTypes.forgotPasswordToken, token, cookieOptions);
 
       return res.status(200).json({
         success: true,
-        message: "Password reset email sent",
+        message: "OTP sent successfully",
       });
     } catch (error) {
-      next(error);
+      return next(error);
+    }
+  }
+  async forgotPasswordVerify(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { otp } = req.body;
+      if (!otp) {
+        if (otp.length !== 6) {
+          return next(new ValidationError("OTP must be 6 digits"));
+        }
+        if (!otp) {
+          return next(new ValidationError("OTP is required"));
+        }
+      }
+      const token = req.cookies[cookieTypes.forgotPasswordToken];
+      const decodedToken = this.tokenService.verifyToken(
+        token,
+        TOKEN_PURPOSE.FORGOT_PASSWORD,
+      );
+      if (!decodedToken) {
+        return next(new ValidationError("Invalid token"));
+      }
+      const user = await this.authService.getUserById(decodedToken.sub);
+
+      if (!user) {
+        return next(new ValidationError("User not found"));
+      }
+
+      const isVerified = await this.otpService.verifyOtp(user.email, otp);
+
+      if (!isVerified) {
+        return next(new ValidationError("Invalid OTP"));
+      }
+      const updateUserToken = this.tokenService.generateToken(
+        {
+          sub: user.id,
+          email: user.email,
+          userId: user.id,
+        },
+        TOKEN_PURPOSE.RESET_PASSWORD,
+      );
+      const cookieOptions: CookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      };
+      setCookie(
+        res,
+        cookieTypes.resetPasswordToken,
+        updateUserToken,
+        cookieOptions,
+      );
+
+      return res
+        .status(200)
+        .json({ success: true, message: "User verified successfully" });
+    } catch (error) {
+      return next(error);
+    }
+  }
+  async forgotResetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { password } = req.body;
+      if (!password) {
+        return next(new ValidationError("Password is required"));
+      }
+      const token = req.cookies[cookieTypes.forgotPasswordToken];
+      const decodedToken = this.tokenService.verifyToken(
+        token,
+        TOKEN_PURPOSE.FORGOT_PASSWORD,
+      );
+      if (!decodedToken) {
+        return next(new ValidationError("Invalid token"));
+      }
+      const user = await this.authService.getUserById(decodedToken.sub);
+
+      if (!user) {
+        return next(new ValidationError("User not found"));
+      }
+
+      await this.authService.resetPassword(user.id, password);
+
+      return res
+        .status(200)
+        .json({ success: true, message: "Password reset successfully" });
+    } catch (error) {
+      return next(error);
+    }
+  }
+  async resetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return next(new UnauthorizedError("Unauthorized"));
+      }
+      const { password, oldPassword } = req.body;
+      if (
+        !password ||
+        !oldPassword ||
+        !oldPassword.length ||
+        !password.length ||
+        password.length < 8 ||
+        oldPassword.length < 8
+      ) {
+        return next(
+          new ValidationError(
+            "Password and old password are required and must be at least 8 characters long",
+          ),
+        );
+      }
+      if (password === oldPassword) {
+        return next(
+          new ValidationError(
+            "New password cannot be the same as the old password",
+          ),
+        );
+      }
+
+      const user = await this.authService.getUserById(req.user?.id!);
+
+      if (!user) {
+        return next(new ValidationError("User not found"));
+      }
+
+      await this.authService.resetPassword(user.id, password);
+
+      return res
+        .status(200)
+        .json({ success: true, message: "Password reset successfully" });
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  async validateSession(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.user?.id) {
+        return next(new UnauthorizedError("Unauthorized"));
+      }
+      return res
+        .status(200)
+        .json({
+          success: true,
+          message: "Session validated successfully",
+          user: req.user,
+        });
+    } catch (error) {
+      return next(error);
     }
   }
 }
