@@ -11,13 +11,16 @@ class MailService {
       const toEmail = Array.isArray(to)
         ? to.map((email) => email.trim())
         : to.trim();
+      console.log("Sending email to:", toEmail);
       await this.transporter.sendMail({
-        from: `<${_env.SMTP_USER}>`,
+        from: `"MVEP" <${_env.SMTP_USER}>`,
         to: toEmail,
         subject,
         html,
       });
+      console.log("Email sent successfully");
     } catch (error) {
+      console.log(error);
       throw new InternalServerError("Error sending email");
     }
   }

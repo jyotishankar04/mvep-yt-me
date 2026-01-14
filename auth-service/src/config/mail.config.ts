@@ -6,11 +6,12 @@ import { _env } from "./env";
 const transporter = nodemailer.createTransport({
   host: _env.MAIL_HOST,
   port: Number(_env.MAIL_PORT),
+  secure: false,
   auth:
     _env.NODE_ENV === "production"
       ? {
-          user: _env.MAIL_USER,
-          pass: _env.MAIL_PASS,
+          user: _env.SMTP_USER,
+          pass: _env.SMTP_PASS,
         }
       : undefined,
 });
