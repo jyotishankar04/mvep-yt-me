@@ -25,6 +25,10 @@ const envSchema = Object.freeze(
     KAFKA_CLIENT_ID: z.string(),
     KAFKA_TOPIC: z.string(),
     KAFKA_GROUP_ID: z.string(),
+
+    // Admin
+    ADMIN_USERNAME: z.string(),
+    ADMIN_PASSWORD: z.string().min(8).max(100),
   }),
 ).safeParse(process.env);
 

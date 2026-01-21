@@ -8,6 +8,7 @@ import pinoHttp from "pino-http";
 
 import authRoutes from "./modules/user/routes/auth.routes";
 import sellerRoutes from "./modules/seller/routes/auth.routes";
+import adminRoutes from "./modules/admin/routes/auth.routes";
 import { _env } from "./config/env";
 import { errorHandler } from "./middlewares/error-handler";
 import { logger } from "./config/logger";
@@ -118,7 +119,7 @@ export function createServer() {
 
   app.use("/api/auth", authRoutes);
   app.use("/api/auth/seller", sellerRoutes);
-
+  app.use("/api/auth/admin", adminRoutes);
   /**
    * --------------------
    * Health check

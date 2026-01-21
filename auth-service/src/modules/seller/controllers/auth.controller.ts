@@ -82,7 +82,7 @@ class AuthController {
       const tokenPayload: TokenPayload = {
         sub: seller.id,
         email: seller.email,
-        role: "seller",
+        role: "SELLER",
         verified: seller.isVerified,
       };
 
@@ -240,7 +240,7 @@ class AuthController {
         {
           sub: seller.id,
           email: seller.email,
-          role: "seller",
+          role: "SELLER",
           name: seller.name,
           isVerified: seller.isVerified,
           sessionId: session.id,
@@ -332,7 +332,7 @@ class AuthController {
         {
           sub: seller.id,
           email: seller.email,
-          role: "seller",
+          role: "SELLER",
           name: seller.name,
           isVerified: seller.isVerified,
           sessionId: session.id,
@@ -354,7 +354,7 @@ class AuthController {
         {
           sub: seller.id,
           email: seller.email,
-          role: "seller",
+          role: "SELLER",
           name: seller.name,
           isVerified: seller.isVerified,
           sessionId: session.id,
@@ -401,7 +401,7 @@ class AuthController {
       const tokenPayload: TokenPayload = {
         sub: seller.id,
         email: seller.email,
-        role: "seller",
+        role: "SELLER",
         verified: seller.isVerified,
       };
 
