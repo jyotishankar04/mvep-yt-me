@@ -26,7 +26,7 @@ export const authMiddleware =
       }
 
       req.user = {
-        id: payload.id,
+        id: payload.sub,
         deviceId: payload.deviceId,
         email: payload.email!,
         name: payload.name!,
