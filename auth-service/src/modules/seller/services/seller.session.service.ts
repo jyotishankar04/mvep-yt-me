@@ -5,8 +5,6 @@ import {
 } from "../../../generated/prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
-import { crossOriginResourcePolicy } from "helmet";
-import { TokenExpiredError } from "jsonwebtoken";
 
 const REFRESH_TOKEN_DAYS = 7;
 
@@ -16,15 +14,15 @@ export class SessionService {
   /* -------------------- SESSION -------------------- */
 
   async createSession(input: {
-    userId: string;
+    sellerId: string;
     deviceId: string;
     deviceType: DeviceType;
     ipAddress?: string;
     userAgent?: string;
   }) {
-    const session = await this.prisma.userSession.create({
+    const session = await this.prisma.sellerSession.create({
       data: {
-        userId: input.userId,
+        sellerId: input.sellerId,
         status: SessionStatus.ACTIVE,
         ipAddress: input.ipAddress,
         userAgent: input.userAgent,
@@ -33,7 +31,7 @@ export class SessionService {
 
     await this.prisma.deviceSession.create({
       data: {
-        userSessionId: session.id,
+        sellerSessionId: session.id,
         deviceId: input.deviceId,
         deviceType: input.deviceType,
         ipAddress: input.ipAddress ?? "",
@@ -50,17 +48,17 @@ export class SessionService {
     // 🔧 CHANGED: Fetch device session directly (more efficient & safer)
     const deviceSession = await this.prisma.deviceSession.findFirst({
       where: {
-        userSessionId: sessionId,
+        sellerSessionId: sessionId,
         deviceId,
       },
       include: {
-        userSession: true,
+        sellerSession: true,
       },
     });
 
     if (
       !deviceSession ||
-      deviceSession.userSession?.status !== SessionStatus.ACTIVE
+      deviceSession.sellerSession?.status !== SessionStatus.ACTIVE
     ) {
       return false;
     }
@@ -76,7 +74,7 @@ export class SessionService {
   /* -------------------- REVOKE FULL SESSION -------------------- */
 
   async revokeSession(sessionId: string) {
-    await this.prisma.userSession.update({
+    await this.prisma.sellerSession.update({
       where: { id: sessionId },
       data: { status: SessionStatus.REVOKED },
     });
@@ -88,7 +86,7 @@ export class SessionService {
 
     // unchanged
     await this.prisma.deviceSession.deleteMany({
-      where: { userSessionId: sessionId },
+      where: { sellerSessionId: sessionId },
     });
   }
   /* -------------------- REVOKE SINGLE DEVICE -------------------- */
@@ -97,7 +95,7 @@ export class SessionService {
     // 🔧 CHANGED: scoped by sessionId (prevents cross-user revocation)
     await this.prisma.deviceSession.deleteMany({
       where: {
-        userSessionId: sessionId,
+        sellerSessionId: sessionId,
         deviceId,
       },
     });
@@ -160,7 +158,7 @@ export class SessionService {
       throw new Error("Invalid refresh token");
     }
 
-    const session = await this.prisma.userSession.findUnique({
+    const session = await this.prisma.sellerSession.findUnique({
       where: { id: token.sessionId },
     });
     if (!session) {
@@ -212,7 +210,7 @@ export class SessionService {
   }
 
   async getSessionById(sessionId: string) {
-    return this.prisma.userSession.findUnique({
+    return this.prisma.sellerSession.findUnique({
       where: { id: sessionId },
     });
   }

@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction, CookieOptions } from "express";
 import AuthService from "../services/auth.service";
-import { userRegisterSchema } from "../validator";
+import { sellerRegisterSchema } from "../validator";
 import {
   UnauthorizedError,
   ValidationError,
 } from "../../../middlewares/error-handler";
 import OtpService from "../services/otp.service";
-import { SessionStatus, User } from "../../../generated/prisma/client";
+import { Seller, SessionStatus, User } from "../../../generated/prisma/client";
 import MailService from "../services/mail.service";
 import {
   EMAIL_TYPE,
@@ -17,7 +17,7 @@ import { TOKEN_PURPOSE, TokenPayload } from "../types/token.types";
 import { TokenService } from "../services/token.service";
 import { cookieTypes, setCookie } from "../utils/cookie";
 import { comparePassword, hashPassword } from "../utils/password";
-import { SessionService } from "../services/user.session.service";
+import { SessionService } from "../services/seller.session.service";
 import { detectDeviceType, generateDeviceId } from "../utils/device";
 
 class AuthController {
@@ -28,52 +28,62 @@ class AuthController {
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
   ) {}
-  async registerUser(req: Request, res: Response, next: NextFunction) {
+  async registerSeller(req: Request, res: Response, next: NextFunction) {
     try {
-      const validate = userRegisterSchema.safeParse(req.body);
+      const validate = sellerRegisterSchema.safeParse(req.body);
       if (!validate.success) {
         return next(new ValidationError(validate.error.message));
       }
-      const existingUser = await this.authService.getUserByEmail(
+      const existingSeller = await this.authService.getSellerByEmail(
         validate.data.email,
       );
 
-      if (existingUser && existingUser.isVerified) {
+      if (existingSeller && existingSeller.isVerified) {
         return next(new ValidationError("Email already exists"));
+      }
+
+      if (existingSeller && !existingSeller.isApproved) {
+        return res.status(403).json({
+          success: false,
+          message: "Seller not approved",
+          data: {
+            action: "Please wait for approval",
+          },
+        });
       }
 
       // check if user exist but not verified then skip the registration process
       const hashedPassword = await hashPassword(validate.data.password);
-      let user: User | undefined;
-      if (!existingUser) {
-        user = await this.authService.register({
+      let seller: Seller | undefined;
+      if (!existingSeller) {
+        seller = await this.authService.register({
           ...validate.data,
           password: hashedPassword,
         });
       } else {
-        user = existingUser;
+        seller = existingSeller;
       }
 
-      if (!user) {
-        return next(new Error("User registration failed"));
+      if (!seller) {
+        return next(new Error("Seller registration failed"));
       }
 
-      const otp = await this.otpService.generateOtp(user.email);
+      const otp = await this.otpService.generateOtp(seller.email);
       const mailHtml = registerEmailTemplate({
-        name: user.name,
+        name: seller.name,
         otp: String(otp),
       });
       await this.mailService.sendEmail(
-        user.email,
+        seller.email,
         "OTP verification",
         mailHtml,
       );
 
       const tokenPayload: TokenPayload = {
-        sub: user.id,
-        email: user.email,
-        role: user.role,
-        verified: user.isVerified,
+        sub: seller.id,
+        email: seller.email,
+        role: "seller",
+        verified: seller.isVerified,
       };
 
       const token = this.tokenService.generateToken(
@@ -115,23 +125,23 @@ class AuthController {
       if (!decodedToken) {
         return next(new ValidationError("Invalid token"));
       }
-      const user = await this.authService.getUserById(decodedToken.sub);
+      const seller = await this.authService.getSellerById(decodedToken.sub);
 
-      if (!user) {
-        return next(new ValidationError("User not found"));
+      if (!seller) {
+        return next(new ValidationError("Seller not found"));
       }
 
-      const isVerified = await this.otpService.verifyOtp(user.email, otp);
+      const isVerified = await this.otpService.verifyOtp(seller.email, otp);
 
       if (!isVerified) {
         return next(new ValidationError("Invalid OTP"));
       }
 
-      await this.authService.verifyUser(user.id);
+      await this.authService.verifySeller(seller.id);
 
       return res
         .status(200)
-        .json({ success: true, message: "User verified successfully" });
+        .json({ success: true, message: "Seller verified successfully" });
     } catch (error) {
       next(error);
     }
@@ -147,21 +157,21 @@ class AuthController {
       if (!decodedToken) {
         return next(new ValidationError("Invalid token"));
       }
-      const user = await this.authService.getUserById(decodedToken.sub);
+      const seller = await this.authService.getSellerById(decodedToken.sub);
 
-      if (!user) {
-        return next(new ValidationError("User not found"));
+      if (!seller) {
+        return next(new ValidationError("Seller not found"));
       }
 
-      const otp = await this.otpService.generateOtp(user.email);
+      const otp = await this.otpService.generateOtp(seller.email);
 
       const html = registerEmailTemplate({
-        name: user.name,
+        name: seller.name,
         otp: String(otp),
       });
-      await this.mailService.sendEmail(user.email, "OTP Verification", html);
+      await this.mailService.sendEmail(seller.email, "OTP Verification", html);
       const generatedToken = this.tokenService.generateToken(
-        { sub: user.id },
+        { sub: seller.id },
         TOKEN_PURPOSE.REGISTER,
       );
       const cookieOptions: CookieOptions = {
@@ -183,21 +193,29 @@ class AuthController {
       next(error);
     }
   }
-  async loginUser(req: Request, res: Response, next: NextFunction) {
+  async loginSeller(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
 
-      const user = await this.authService.getUserByEmail(email);
+      const seller = await this.authService.getSellerByEmail(email);
 
-      if (!user) {
+      if (!seller) {
         return next(new ValidationError("Invalid email or password"));
       }
-      if (user && !user.isVerified) {
+      if (seller && !seller.isVerified) {
         return next(new ValidationError("Please verify your email"));
       }
+      if (!seller.isApproved) {
+        return res.status(403).json({
+          success: false,
+          message: "Seller not approved",
+          data: {
+            action: "Please wait for approval",
+          },
+        });
+      }
 
-      console.log(user);
-      const isPasswordValid = await comparePassword(password, user.password!);
+      const isPasswordValid = await comparePassword(password, seller.password!);
       if (!isPasswordValid) {
         return next(new ValidationError("Invalid email or password"));
       }
@@ -210,7 +228,7 @@ class AuthController {
 
       /* -------------------- 4️⃣ CREATE SESSION -------------------- */
       const session = await this.sessionService.createSession({
-        userId: user.id,
+        sellerId: seller.id,
         deviceId,
         deviceType: detectDeviceType(req.headers["user-agent"]),
         ipAddress: req.ip,
@@ -220,11 +238,11 @@ class AuthController {
       /* -------------------- 5️⃣ CREATE TOKENS -------------------- */
       const accessToken = this.tokenService.generateToken(
         {
-          sub: user.id,
-          email: user.email,
-          role: user.role,
-          name: user.name,
-          isVerified: user.isVerified,
+          sub: seller.id,
+          email: seller.email,
+          role: "seller",
+          name: seller.name,
+          isVerified: seller.isVerified,
           sessionId: session.id,
           deviceId,
         },
@@ -236,14 +254,14 @@ class AuthController {
       );
 
       /* -------------------- 6️⃣ SET REFRESH AND ACCESS COOKIE -------------------- */
-      res.cookie("refreshToken", refreshToken, {
+      res.cookie("sellerRegisterSchema", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
-      res.cookie("accessToken", accessToken, {
+      res.cookie("sellerAccessToken", accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
@@ -260,9 +278,9 @@ class AuthController {
       return next(error);
     }
   }
-  async logoutUser(req: Request, res: Response, next: NextFunction) {
+  async logoutSeller(req: Request, res: Response, next: NextFunction) {
     try {
-      const refreshToken = req.cookies.refreshToken;
+      const refreshToken = req.cookies.sellerRegisterSchema;
       if (!refreshToken) {
         return next(new ValidationError("No refresh token provided"));
       }
@@ -278,19 +296,19 @@ class AuthController {
         return next(new ValidationError("Session not found"));
       }
       await this.sessionService.revokeSession(session.id);
-      res.clearCookie("refreshToken");
-      res.clearCookie("accessToken");
+      res.clearCookie("sellerRegisterSchema");
+      res.clearCookie("sellerAccessToken");
       return res.status(200).json({
         success: true,
-        message: "User logged out successfully",
+        message: "Seller logged out successfully",
       });
     } catch (error) {
       return next(error);
     }
   }
-  async refreshUserToken(req: Request, res: Response, next: NextFunction) {
+  async refreshSellerToken(req: Request, res: Response, next: NextFunction) {
     try {
-      const refreshToken = req.cookies.refreshToken;
+      const refreshToken = req.cookies.sellerRegisterSchema;
 
       if (!refreshToken) {
         return next(new ValidationError("No refresh token provided"));
@@ -304,28 +322,55 @@ class AuthController {
         return next(new ValidationError("Invalid or expired refresh token"));
       }
 
-      const user = await this.authService.getUserById(session.userId);
-      if (!user) {
+      const seller = await this.authService.getSellerById(session.sellerId);
+      if (!seller) {
         return next(new ValidationError("User not found"));
       }
 
       // Generate new access token (this is the main purpose)
       const accessToken = this.tokenService.generateToken(
         {
-          sub: user.id,
-          email: user.email,
-          role: user.role,
-          name: user.name,
-          isVerified: user.isVerified,
+          sub: seller.id,
+          email: seller.email,
+          role: "seller",
+          name: seller.name,
+          isVerified: seller.isVerified,
           sessionId: session.id,
         },
         TOKEN_PURPOSE.ACCESS,
       );
 
+      // set COOKIES
+      const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      };
+
+      res.cookie("accessToken", accessToken, cookieOptions);
+
+      // Generate new refresh token
+      const sellerRefreshToken = this.tokenService.generateToken(
+        {
+          sub: seller.id,
+          email: seller.email,
+          role: "seller",
+          name: seller.name,
+          isVerified: seller.isVerified,
+          sessionId: session.id,
+        },
+        TOKEN_PURPOSE.REFRESH,
+      );
+
+      // set COOKIES
+      res.cookie("sellerRefreshToken", sellerRefreshToken, cookieOptions);
+
+      res.cookie("sellerAccessToken", accessToken, cookieOptions);
+
       return res.status(200).json({
         success: true,
         accessToken,
-        refreshToken,
+        refreshToken: sellerRefreshToken,
       });
     } catch (error) {
       return next(error);
@@ -336,28 +381,28 @@ class AuthController {
     try {
       const { email } = req.body;
 
-      const user = await this.authService.getUserByEmail(email);
-      if (!user) {
-        return next(new ValidationError("User not found"));
+      const seller = await this.authService.getSellerByEmail(email);
+      if (!seller) {
+        return next(new ValidationError("Seller not found"));
       }
 
-      const otp = await this.otpService.generateOtp(user.email);
+      const otp = await this.otpService.generateOtp(seller.email);
       const mailHtml = forgotPasswordEmailTemplate({
-        name: user.name,
+        name: seller.name,
         otp: String(otp),
       });
 
       await this.mailService.sendEmail(
-        user.email,
+        seller.email,
         "OTP verification",
         mailHtml,
       );
 
       const tokenPayload: TokenPayload = {
-        sub: user.id,
-        email: user.email,
-        role: user.role,
-        verified: user.isVerified,
+        sub: seller.id,
+        email: seller.email,
+        role: "seller",
+        verified: seller.isVerified,
       };
 
       const token = this.tokenService.generateToken(
@@ -400,22 +445,22 @@ class AuthController {
       if (!decodedToken) {
         return next(new ValidationError("Invalid token"));
       }
-      const user = await this.authService.getUserById(decodedToken.sub);
+      const seller = await this.authService.getSellerByEmail(decodedToken.sub);
 
-      if (!user) {
-        return next(new ValidationError("User not found"));
+      if (!seller) {
+        return next(new ValidationError("Seller not found"));
       }
 
-      const isVerified = await this.otpService.verifyOtp(user.email, otp);
+      const isVerified = await this.otpService.verifyOtp(seller.email, otp);
 
       if (!isVerified) {
         return next(new ValidationError("Invalid OTP"));
       }
       const updateUserToken = this.tokenService.generateToken(
         {
-          sub: user.id,
-          email: user.email,
-          userId: user.id,
+          sub: seller.id,
+          email: seller.email,
+          userId: seller.id,
         },
         TOKEN_PURPOSE.RESET_PASSWORD,
       );
@@ -433,7 +478,7 @@ class AuthController {
 
       return res
         .status(200)
-        .json({ success: true, message: "User verified successfully" });
+        .json({ success: true, message: "Seller verified successfully" });
     } catch (error) {
       return next(error);
     }
@@ -452,13 +497,13 @@ class AuthController {
       if (!decodedToken) {
         return next(new ValidationError("Invalid token"));
       }
-      const user = await this.authService.getUserById(decodedToken.sub);
+      const seller = await this.authService.getSellerById(decodedToken.sub);
 
-      if (!user) {
-        return next(new ValidationError("User not found"));
+      if (!seller) {
+        return next(new ValidationError("Seller not found"));
       }
 
-      await this.authService.resetPassword(user.id, password);
+      await this.authService.resetPassword(seller.id, password);
 
       return res
         .status(200)
@@ -495,13 +540,13 @@ class AuthController {
         );
       }
 
-      const user = await this.authService.getUserById(req.user?.id!);
+      const seller = await this.authService.getSellerById(req.user?.id!);
 
-      if (!user) {
-        return next(new ValidationError("User not found"));
+      if (!seller) {
+        return next(new ValidationError("Seller not found"));
       }
 
-      await this.authService.resetPassword(user.id, password);
+      await this.authService.resetPassword(seller.id, password);
 
       return res
         .status(200)

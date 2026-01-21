@@ -8,8 +8,7 @@ import MailService from "../services/mail.service";
 import transporter from "../../../config/mail.config";
 import AuthService from "../services/auth.service";
 import { TokenService } from "../services/token.service";
-import { SessionService } from "../services/user.session.service";
-import { authMiddleware } from "../../../middlewares/auth.middleware";
+import { SessionService } from "../services/seller.session.service";
 
 const router = Router();
 
@@ -36,7 +35,7 @@ const authController = new AuthController(
  */
 
 // Register user (send OTP)
-router.post("/register", authController.registerUser.bind(authController));
+router.post("/register", authController.registerSeller.bind(authController));
 
 // Verify OTP
 router.post("/verify", authController.verifyOtp.bind(authController));
@@ -45,13 +44,13 @@ router.post("/verify", authController.verifyOtp.bind(authController));
 router.post("/resend", authController.resendOtp.bind(authController));
 
 // Login user (generate token)
-router.post("/login", authController.loginUser.bind(authController));
+router.post("/login", authController.loginSeller.bind(authController));
 
 // Logout user (invalidate token)
-router.post("/logout", authController.logoutUser.bind(authController));
+router.post("/logout", authController.logoutSeller.bind(authController));
 
 // Refresh token
-router.post("/refresh", authController.refreshUserToken.bind(authController));
+router.post("/refresh", authController.refreshSellerToken.bind(authController));
 
 // for got password
 router.post(

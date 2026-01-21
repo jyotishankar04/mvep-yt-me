@@ -54,20 +54,44 @@ model User {
 }
 
 model Seller {
-  id       String  @id @default(ulid())
-  name     String
-  email    String  @unique
-  password String
-  phoneNo  String
-  country  String
-  stripeId String?
+  id         String  @id @default(ulid())
+  name       String
+  email      String  @unique
+  password   String
+  phoneNo    String
+  country    String
+  razorpayId String?
 
-  status SellerStatus @default(INIT)
-
-  sessions SellerSession[]
+  status     SellerStatus    @default(INIT)
+  isVerified Boolean         @default(false)
+  isApproved Boolean         @default(false)
+  sessions   SellerSession[]
+  shopInfo   ShopInfo?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ShopInfo {
+  id       String @id @default(ulid())
+  name     String
+  sellerId String @unique
+
+  bannerImage String?
+  logoImage   String?
+
+  description String?
+
+  address String
+  city    String
+  state   String
+  country String
+  pincode String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
 model UserSession {

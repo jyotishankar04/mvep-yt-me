@@ -1,71 +1,101 @@
-import { PrismaClient, User } from "../../../generated/prisma/client";
+import {
+  PrismaClient,
+  SellerStatus,
+  User,
+} from "../../../generated/prisma/client";
 import { InternalServerError } from "../../../middlewares/error-handler";
 import { hashPassword } from "../utils/password";
-import { UserRegisterSchema } from "../validator";
+import { SellerRegisterSchema } from "../validator";
 
 class AuthService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async register(data: UserRegisterSchema) {
+  async register(data: SellerRegisterSchema) {
     try {
-      const user = await this.prisma.user.create({
-        data,
+      const seller = await this.prisma.seller.create({
+        data: {
+          email: data.email,
+          password: await hashPassword(data.password),
+          name: data.name,
+          phoneNo: data.phoneNo,
+          country: data.country,
+          isVerified: false,
+          isApproved: false,
+          status: "INIT",
+        },
       });
-      if (!user) {
+      if (!seller) {
         throw new InternalServerError("Error in user creation");
       }
-      return user;
+      return seller;
     } catch (error) {
       new InternalServerError("Error in user creation");
       return;
     }
   }
-  async getUserById(id: string) {
+
+  async changeStatus(id: string, status: SellerStatus) {
     try {
-      const user = await this.prisma.user.findUnique({
+      const seller = await this.prisma.seller.update({
+        where: { id },
+        data: { status },
+      });
+      if (!seller) {
+        throw new InternalServerError("Error in user status update");
+      }
+      return seller;
+    } catch (error) {
+      new InternalServerError("Error in user status update");
+      return;
+    }
+  }
+
+  async getSellerById(id: string) {
+    try {
+      const seller = await this.prisma.seller.findUnique({
         where: { id },
       });
-      return user;
+      return seller;
     } catch (error) {
       new InternalServerError("Error in user retrieval");
       return;
     }
   }
-  async getUserByEmail(email: string) {
+  async getSellerByEmail(email: string) {
     try {
-      const user = await this.prisma.user.findUnique({
+      const seller = await this.prisma.seller.findUnique({
         where: { email },
       });
-      return user;
+      return seller;
     } catch (error) {
       new InternalServerError("Error in user retrieval");
       return;
     }
   }
-  async verifyUser(id: string) {
+  async verifySeller(id: string) {
     try {
-      const user = await this.prisma.user.update({
+      const seller = await this.prisma.seller.update({
         where: { id },
-        data: { isVerified: true },
+        data: { isVerified: true, status: SellerStatus.SETUP },
       });
-      if (!user) {
+      if (!seller) {
         throw new InternalServerError("Error in user verification");
       }
-      return user;
+      return seller;
     } catch (error) {
       new InternalServerError("Error in user verification");
       return;
     }
   }
-  async deleteUser(id: string) {
+  async deleteSeller(id: string) {
     try {
-      const user = await this.prisma.user.delete({
+      const seller = await this.prisma.seller.delete({
         where: { id },
       });
-      if (!user) {
+      if (!seller) {
         throw new InternalServerError("Error in user deletion");
       }
-      return user;
+      return seller;
     } catch (error) {
       new InternalServerError("Error in user deletion");
       return;
@@ -73,14 +103,14 @@ class AuthService {
   }
   async resetPassword(id: string, newPassword: string) {
     try {
-      const user = await this.prisma.user.update({
+      const seller = await this.prisma.seller.update({
         where: { id },
         data: { password: await hashPassword(newPassword) },
       });
-      if (!user) {
+      if (!seller) {
         throw new InternalServerError("Error in password reset");
       }
-      return user;
+      return seller;
     } catch (error) {
       new InternalServerError("Error in password reset");
       return;
