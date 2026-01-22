@@ -4,18 +4,18 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 declare global {
   namespace globalThis {
-    var prisma: PrismaClient
+    var prisma: PrismaClient;
   }
 }
 
 const adapter = new PrismaPg({
-  connectionString: _env.DATABASE_URL
+  connectionString: _env.DATABASE_URL,
 });
-const prisma  = new PrismaClient({
-  adapter
-})
+const prisma = new PrismaClient({
+  adapter,
+  log: _env.NODE_ENV === "test" ? [] : ["error"],
+});
 
+if (_env.NODE_ENV === "production") globalThis.prisma = prisma;
 
-if(_env.NODE_ENV === "production") globalThis.prisma = prisma
-
-export default prisma
+export default prisma;

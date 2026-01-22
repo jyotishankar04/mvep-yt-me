@@ -90,8 +90,12 @@ class AuthController {
       setCookie(res, cookieTypes.registrationToken, token, cookieOptions);
 
       return res
-        .status(200)
-        .json({ success: true, message: "OTP sent successfully", token });
+        .status(201)
+        .json({
+          success: true,
+          message: "OTP sent successfully",
+          data: { token },
+        });
     } catch (error) {
       next(error);
     }
